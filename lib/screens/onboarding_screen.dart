@@ -36,7 +36,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   bool _fullScreenIntent = true;
   TimeOfDay _selectedTime = const TimeOfDay(hour: 8, minute: 0);
   bool _requestingLocation = false;
-  String _locationHint = 'City or ZIP code';
+  String _locationHint = "City or ZIP code";
   double? _selectedLatitude;
   double? _selectedLongitude;
 
@@ -93,7 +93,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       final serviceEnabled = await Geolocator.isLocationServiceEnabled();
       if (!serviceEnabled) {
         setState(() {
-          _locationHint = 'Enable device location, or type your city manually';
+          _locationHint = "Enable device location, or type your city manually";
         });
         return;
       }
@@ -106,13 +106,15 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       if (permission == LocationPermission.denied ||
           permission == LocationPermission.deniedForever) {
         setState(() {
-          _locationHint = 'Permission denied. You can type your city manually.';
+          _locationHint = "Permission denied. You can type your city manually.";
         });
         return;
       }
 
       final position = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.medium,
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.medium,
+        ),
       ).timeout(const Duration(seconds: 10));
       if (!mounted) {
         return;
@@ -123,13 +125,13 @@ class _OnboardingScreenState extends State<OnboardingScreen>
         _locationController.text =
             '${position.latitude.toStringAsFixed(4)}, ${position.longitude.toStringAsFixed(4)}';
         _locationHint =
-            'Current location saved. You can still edit city or ZIP code anytime.';
+            "Current location saved. You can still edit city or ZIP code anytime.";
       });
     } catch (_) {
       if (mounted) {
         setState(() {
           _locationHint =
-              'Couldn't fetch your current location. Enter city or ZIP manually.';
+              "Couldn't fetch your current location. Enter city or ZIP manually.";
         });
       }
     } finally {
@@ -213,9 +215,9 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                       shape: BoxShape.circle,
                       border: Border.all(
                         color: <Color>[
-                          colors.skyMist.withOpacity(0.5),
-                          colors.forestSage.withOpacity(0.6),
-                          colors.sunGlow.withOpacity(0.8),
+                          colors.skyMist.withValues(alpha: 0.5),
+                          colors.forestSage.withValues(alpha: 0.6),
+                          colors.sunGlow.withValues(alpha: 0.8),
                         ][index],
                         width: 1.6,
                       ),
@@ -232,7 +234,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                     BoxShadow(
                       blurRadius: 30,
                       offset: const Offset(0, 10),
-                      color: colors.sunGlow.withOpacity(0.28),
+                      color: colors.sunGlow.withValues(alpha: 0.28),
                     ),
                   ],
                 ),
@@ -319,7 +321,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       children: <Widget>[
         const SizedBox(height: 18),
         Text(
-          'Let's personalize your briefing',
+          "Let's personalize your briefing",
           style: Theme.of(context).textTheme.headlineSmall,
         ),
         const SizedBox(height: 12),
@@ -490,7 +492,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                 value: (_pageIndex + 1) / 4,
                 borderRadius: BorderRadius.circular(100),
                 minHeight: 6,
-                backgroundColor: colors.skyMist.withOpacity(0.22),
+                backgroundColor: colors.skyMist.withValues(alpha: 0.22),
               ),
               const SizedBox(height: 10),
               Expanded(
