@@ -53,16 +53,20 @@ class LocationLabelHelper {
     required double latitude,
     required double longitude,
   }) async {
-    final placemarks = await placemarkFromCoordinates(latitude, longitude);
-    if (placemarks.isEmpty) {
-      return fallbackLatLngLabel(latitude, longitude);
-    }
+    try {
+      final placemarks = await placemarkFromCoordinates(latitude, longitude);
+      if (placemarks.isEmpty) {
+        return fallbackLatLngLabel(latitude, longitude);
+      }
 
-    final label = _formatPlacemarkLabel(placemarks.first);
-    if (label.isEmpty) {
+      final label = _formatPlacemarkLabel(placemarks.first);
+      if (label.isEmpty) {
+        return fallbackLatLngLabel(latitude, longitude);
+      }
+      return label;
+    } catch (_) {
       return fallbackLatLngLabel(latitude, longitude);
     }
-    return label;
   }
 
   static String _formatPlacemarkLabel(Placemark placemark) {
