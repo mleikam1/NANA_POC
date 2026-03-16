@@ -6,6 +6,7 @@ import 'package:geolocator/geolocator.dart';
 import '../config/app_config.dart';
 import '../models/app_user_profile.dart';
 import '../theme/nana_theme.dart';
+import '../widgets/nana_radar_logo.dart';
 
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({
@@ -22,14 +23,10 @@ class OnboardingScreen extends StatefulWidget {
 }
 
 class _OnboardingScreenState extends State<OnboardingScreen>
-    with SingleTickerProviderStateMixin {
+{
   final PageController _pageController = PageController();
   final TextEditingController _firstNameController = TextEditingController();
   final TextEditingController _locationController = TextEditingController();
-
-  late final AnimationController _animationController =
-      AnimationController(vsync: this, duration: const Duration(seconds: 10))
-        ..repeat();
 
   final Set<String> _selectedTopics = <String>{};
   bool _notificationEnabled = true;
@@ -70,7 +67,6 @@ class _OnboardingScreenState extends State<OnboardingScreen>
 
   @override
   void dispose() {
-    _animationController.dispose();
     _pageController.dispose();
     _firstNameController.dispose();
     _locationController.dispose();
@@ -229,65 +225,12 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     return _firstNameController.text.trim().isNotEmpty && _hasLocationValue;
   }
 
-  Widget _buildOrb() {
-    final colors = NanaColors.of(context);
-    return SizedBox(
-      height: 220,
-      width: 220,
-      child: AnimatedBuilder(
-        animation: _animationController,
-        builder: (_, __) {
-          final value = _animationController.value;
-          return Stack(
-            alignment: Alignment.center,
-            children: <Widget>[
-              for (int index = 0; index < 3; index++)
-                Transform.rotate(
-                  angle: value * math.pi * 2 * (index + 1) / 3,
-                  child: Container(
-                    width: 180 - (index * 30),
-                    height: 180 - (index * 30),
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: <Color>[
-                          colors.skyMist.withValues(alpha: 0.5),
-                          colors.forestSage.withValues(alpha: 0.6),
-                          colors.sunGlow.withValues(alpha: 0.8),
-                        ][index],
-                        width: 1.6,
-                      ),
-                    ),
-                  ),
-                ),
-              Container(
-                width: 64,
-                height: 64,
-                decoration: BoxDecoration(
-                  color: colors.sunGlow,
-                  shape: BoxShape.circle,
-                  boxShadow: <BoxShadow>[
-                    BoxShadow(
-                      blurRadius: 30,
-                      offset: const Offset(0, 10),
-                      color: colors.sunGlow.withValues(alpha: 0.28),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          );
-        },
-      ),
-    );
-  }
-
   Widget _introPage() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
         const Spacer(),
-        Center(child: _buildOrb()),
+        const Center(child: NanaRadarLogo(size: 220)),
         const SizedBox(height: 28),
         Text(
           'Meet your calmer daily companion',
@@ -300,6 +243,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
         ),
         const SizedBox(height: 18),
         _FeaturePillRow(
+          animate: _pageIndex == 0,
           labels: const <String>[
             'Protective filter',
             'Daily calm briefings',
@@ -581,25 +525,114 @@ class _OnboardingScreenState extends State<OnboardingScreen>
 }
 
 class _FeaturePillRow extends StatelessWidget {
-  const _FeaturePillRow({required this.labels});
+  const _FeaturePillRow({
+    required this.labels,
+    required this.animate,
+  });
 
   final List<String> labels;
+  final bool animate;
 
   @override
   Widget build(BuildContext context) {
     return Wrap(
       spacing: 10,
       runSpacing: 10,
-      children: labels.map((String label) {
-        return Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-          decoration: BoxDecoration(
-            color: NanaColors.of(context).cardSoft,
-            borderRadius: BorderRadius.circular(999),
+      children: <Widget>[
+        for (int index = 0; index < labels.length; index++)
+          _AnimatedFeaturePill(
+            label: labels[index],
+            index: index,
+            animate: animate,
           ),
-          child: Text(label),
+      ],
+    );
+  }
+}
+
+class _AnimatedFeaturePill extends StatefulWidget {
+  const _AnimatedFeaturePill({
+    required this.label,
+    required this.index,
+    required this.animate,
+  });
+
+  final String label;
+  final int index;
+  final bool animate;
+
+  @override
+  State<_AnimatedFeaturePill> createState() => _AnimatedFeaturePillState();
+}
+
+class _AnimatedFeaturePillState extends State<_AnimatedFeaturePill>
+    with SingleTickerProviderStateMixin {
+  static const Duration _ambientLoopDuration = Duration(milliseconds: 7200);
+  static const Duration _entranceDuration = Duration(milliseconds: 900);
+  static const Duration _staggerDelay = Duration(milliseconds: 170);
+
+  late final AnimationController _ambientController =
+      AnimationController(vsync: this, duration: _ambientLoopDuration)..repeat();
+
+  @override
+  void dispose() {
+    _ambientController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final entranceDelay = Duration(milliseconds: _staggerDelay.inMilliseconds * widget.index);
+    final colors = NanaColors.of(context);
+
+    return TweenAnimationBuilder<double>(
+      tween: Tween<double>(begin: 0, end: widget.animate ? 1 : 0),
+      duration: _entranceDuration,
+      curve: Curves.easeOutCubic,
+      onEnd: null,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: BoxDecoration(
+          color: colors.cardSoft,
+          borderRadius: BorderRadius.circular(999),
+        ),
+        child: Text(widget.label),
+      ),
+      builder: (BuildContext context, double entrance, Widget? child) {
+        return AnimatedBuilder(
+          animation: _ambientController,
+          child: child,
+          builder: (BuildContext context, Widget? child) {
+            final delayedProgress = ((entrance - (entranceDelay.inMilliseconds / 1200)).clamp(0.0, 1.0));
+            final ambientWave = math.sin(
+              (_ambientController.value * math.pi * 2) + (widget.index * 0.85),
+            );
+            final yDrift = ambientWave * 1.5;
+            final alphaPulse = (ambientWave + 1) / 2;
+
+            return Opacity(
+              opacity: delayedProgress,
+              child: Transform.translate(
+                offset: Offset(0, ((1 - delayedProgress) * 10) + yDrift),
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    boxShadow: <BoxShadow>[
+                      BoxShadow(
+                        color: colors.forestSage.withValues(
+                          alpha: 0.05 + (alphaPulse * 0.02),
+                        ),
+                        blurRadius: 10,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: child,
+                ),
+              ),
+            );
+          },
         );
-      }).toList(),
+      },
     );
   }
 }
