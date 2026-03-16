@@ -22,6 +22,7 @@ class ProfileRepository {
 
     final profile = AppUserProfile(
       uid: uid,
+      firstName: '',
       locationLabel: '',
       topics: const [],
       onboardingComplete: false,

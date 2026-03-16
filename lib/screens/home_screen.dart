@@ -32,9 +32,9 @@ class HomeScreen extends StatelessWidget {
             padding: const EdgeInsets.fromLTRB(20, 12, 20, 120),
             children: <Widget>[
               Text(
-                profile.locationLabel.isEmpty
+                profile.firstName.isEmpty
                     ? 'Good Morning'
-                    : 'Good Morning,\n${profile.locationLabel}',
+                    : 'Welcome back, ${profile.firstName}',
                 style: Theme.of(context).textTheme.displaySmall,
               ),
               const SizedBox(height: 6),

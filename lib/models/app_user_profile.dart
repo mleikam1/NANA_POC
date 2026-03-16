@@ -1,15 +1,21 @@
 class AppUserProfile {
   const AppUserProfile({
     required this.uid,
+    required this.firstName,
     required this.locationLabel,
     required this.topics,
     required this.onboardingComplete,
     required this.notificationPreferences,
+    this.locationLatitude,
+    this.locationLongitude,
     this.messagingTokens = const [],
   });
 
   final String uid;
+  final String firstName;
   final String locationLabel;
+  final double? locationLatitude;
+  final double? locationLongitude;
   final List<String> topics;
   final bool onboardingComplete;
   final NotificationPreference notificationPreferences;
@@ -17,7 +23,10 @@ class AppUserProfile {
 
   AppUserProfile copyWith({
     String? uid,
+    String? firstName,
     String? locationLabel,
+    double? locationLatitude,
+    double? locationLongitude,
     List<String>? topics,
     bool? onboardingComplete,
     NotificationPreference? notificationPreferences,
@@ -25,7 +34,10 @@ class AppUserProfile {
   }) {
     return AppUserProfile(
       uid: uid ?? this.uid,
+      firstName: firstName ?? this.firstName,
       locationLabel: locationLabel ?? this.locationLabel,
+      locationLatitude: locationLatitude ?? this.locationLatitude,
+      locationLongitude: locationLongitude ?? this.locationLongitude,
       topics: topics ?? this.topics,
       onboardingComplete: onboardingComplete ?? this.onboardingComplete,
       notificationPreferences:
@@ -37,7 +49,10 @@ class AppUserProfile {
   Map<String, dynamic> toMap() {
     return <String, dynamic>{
       'uid': uid,
+      'firstName': firstName,
       'locationLabel': locationLabel,
+      'locationLatitude': locationLatitude,
+      'locationLongitude': locationLongitude,
       'topics': topics,
       'onboardingComplete': onboardingComplete,
       'notificationPreferences': notificationPreferences.toMap(),
@@ -48,7 +63,10 @@ class AppUserProfile {
   factory AppUserProfile.fromMap(Map<String, dynamic> map) {
     return AppUserProfile(
       uid: map['uid'] as String? ?? '',
+      firstName: map['firstName'] as String? ?? '',
       locationLabel: map['locationLabel'] as String? ?? '',
+      locationLatitude: (map['locationLatitude'] as num?)?.toDouble(),
+      locationLongitude: (map['locationLongitude'] as num?)?.toDouble(),
       topics: List<String>.from(map['topics'] as List? ?? const []),
       onboardingComplete: map['onboardingComplete'] as bool? ?? false,
       notificationPreferences: NotificationPreference.fromMap(
