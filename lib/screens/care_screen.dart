@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../models/app_user_profile.dart';
+import '../utils/location_label_helper.dart';
 import '../services/notification_service.dart';
 
 class CareScreen extends StatefulWidget {
@@ -20,8 +21,13 @@ class CareScreen extends StatefulWidget {
 }
 
 class _CareScreenState extends State<CareScreen> {
-  late final TextEditingController _locationController =
-      TextEditingController(text: widget.profile.locationLabel);
+  late final TextEditingController _locationController = TextEditingController(
+    text: LocationLabelHelper.bestLabelFromProfile(
+      locationLabel: widget.profile.locationLabel,
+      latitude: widget.profile.locationLatitude,
+      longitude: widget.profile.locationLongitude,
+    ),
+  );
 
   late bool _enabled = widget.profile.notificationPreferences.enabled;
   late bool _fullScreenIntent =

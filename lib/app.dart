@@ -80,6 +80,8 @@ class _SessionGateState extends State<SessionGate> {
         _loading = false;
       });
 
+      unawaited(_repairCoordinateLocationLabel(profile));
+
       await NotificationService.instance.bindForegroundNavigation();
     } catch (error, st) {
       debugPrint('SESSION: Bootstrap failed: $error');
@@ -90,6 +92,18 @@ class _SessionGateState extends State<SessionGate> {
         _error = error.toString();
         _loading = false;
       });
+    }
+  }
+
+
+  Future<void> _repairCoordinateLocationLabel(AppUserProfile profile) async {
+    final normalized =
+        await _profileRepository.normalizeLocationLabelIfNeeded(profile);
+    if (!mounted || normalized.uid != profile.uid) {
+      return;
+    }
+    if (normalized.locationLabel != profile.locationLabel) {
+      setState(() => _profile = normalized);
     }
   }
 

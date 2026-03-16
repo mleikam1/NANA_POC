@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../models/app_user_profile.dart';
+import '../utils/location_label_helper.dart';
 
 export '../models/app_user_profile.dart';
 
@@ -60,6 +61,37 @@ class ProfileRepository {
       },
       SetOptions(merge: true),
     );
+  }
+
+
+  Future<AppUserProfile> normalizeLocationLabelIfNeeded(AppUserProfile profile) async {
+    final label = profile.locationLabel.trim();
+    final latitude = profile.locationLatitude;
+    final longitude = profile.locationLongitude;
+
+    if (!LocationLabelHelper.isCoordinateLikeLabel(label) ||
+        latitude == null ||
+        longitude == null) {
+      return profile;
+    }
+
+    try {
+      final friendlyLabel = await LocationLabelHelper.reverseGeocodeLocationLabel(
+        latitude: latitude,
+        longitude: longitude,
+      );
+
+      if (friendlyLabel.isEmpty ||
+          LocationLabelHelper.isCoordinateLikeLabel(friendlyLabel)) {
+        return profile;
+      }
+
+      final normalized = profile.copyWith(locationLabel: friendlyLabel);
+      await saveProfile(normalized);
+      return normalized;
+    } catch (_) {
+      return profile;
+    }
   }
 
   Stream<AppUserProfile> watchProfile(String uid) {
