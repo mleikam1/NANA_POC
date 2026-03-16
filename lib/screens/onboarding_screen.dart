@@ -93,8 +93,13 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       final serviceEnabled = await Geolocator.isLocationServiceEnabled();
       if (!serviceEnabled) {
         setState(() {
-          _locationHint = "Enable device location, or type your city manually";
+          _locationHint = 'Enable device location, or type your city manually';
         });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Turn on device location to use this option.'),
+          ),
+        );
         return;
       }
 
@@ -103,10 +108,24 @@ class _OnboardingScreenState extends State<OnboardingScreen>
         permission = await Geolocator.requestPermission();
       }
 
-      if (permission == LocationPermission.denied ||
-          permission == LocationPermission.deniedForever) {
+      if (permission == LocationPermission.deniedForever) {
         setState(() {
-          _locationHint = "Permission denied. You can type your city manually.";
+          _locationHint =
+              'Location permission is blocked. Enter city or ZIP manually.';
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Location permission is permanently denied. You can continue with city or ZIP.',
+            ),
+          ),
+        );
+        return;
+      }
+
+      if (permission == LocationPermission.denied) {
+        setState(() {
+          _locationHint = 'Permission denied. You can type your city manually.';
         });
         return;
       }
@@ -123,9 +142,9 @@ class _OnboardingScreenState extends State<OnboardingScreen>
         _selectedLatitude = position.latitude;
         _selectedLongitude = position.longitude;
         _locationController.text =
-            '${position.latitude.toStringAsFixed(4)}, ${position.longitude.toStringAsFixed(4)}';
+            'Current location (${position.latitude.toStringAsFixed(4)}, ${position.longitude.toStringAsFixed(4)})';
         _locationHint =
-            "Current location saved. You can still edit city or ZIP code anytime.";
+            'Current location saved. You can still edit city or ZIP code anytime.';
       });
     } catch (_) {
       if (mounted) {
@@ -133,6 +152,13 @@ class _OnboardingScreenState extends State<OnboardingScreen>
           _locationHint =
               "Couldn't fetch your current location. Enter city or ZIP manually.";
         });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              "We couldn't get your location right now. Please enter city or ZIP.",
+            ),
+          ),
+        );
       }
     } finally {
       if (mounted) {
@@ -143,7 +169,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
 
   Future<void> _finish() async {
     final firstName = _firstNameController.text.trim();
-    final locationLabel = _locationController.text.trim();
+    final typedLocationLabel = _locationController.text.trim();
 
     if (firstName.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -152,9 +178,13 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       return;
     }
 
-    if (locationLabel.isEmpty) {
+    if (!_hasLocationValue) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please add a city or ZIP code for the briefing.')),
+        const SnackBar(
+          content: Text(
+            'Please share your current location or enter a city / ZIP code.',
+          ),
+        ),
       );
       return;
     }
@@ -165,7 +195,9 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       final profile = AppUserProfile(
         uid: existingUid,
         firstName: firstName,
-        locationLabel: locationLabel,
+        locationLabel: typedLocationLabel.isNotEmpty
+            ? typedLocationLabel
+            : 'Current location',
         locationLatitude: _selectedLatitude,
         locationLongitude: _selectedLongitude,
         topics: _selectedTopics.toList()..sort(),
@@ -188,9 +220,13 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     }
   }
 
+  bool get _hasLocationValue {
+    return _locationController.text.trim().isNotEmpty ||
+        (_selectedLatitude != null && _selectedLongitude != null);
+  }
+
   bool get _isPersonalizationValid {
-    return _firstNameController.text.trim().isNotEmpty &&
-        _locationController.text.trim().isNotEmpty;
+    return _firstNameController.text.trim().isNotEmpty && _hasLocationValue;
   }
 
   Widget _buildOrb() {
@@ -448,7 +484,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     if (_pageIndex == 2 && !_isPersonalizationValid) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Please add your first name and location to continue.'),
+          content: Text('Please add your first name and share location or city / ZIP to continue.'),
         ),
       );
       return;
