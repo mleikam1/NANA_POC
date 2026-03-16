@@ -5,6 +5,7 @@ import 'package:cloud_functions/cloud_functions.dart';
 import '../config/app_config.dart';
 import '../models/app_user_profile.dart';
 import '../models/briefing_bundle.dart';
+import '../utils/location_label_helper.dart';
 
 class BriefingRepository {
   BriefingRepository()
@@ -15,9 +16,16 @@ class BriefingRepository {
 
   Future<BriefingBundle> getDailyBriefing(AppUserProfile profile) async {
     try {
+      final requestLocationLabel = LocationLabelHelper.bestLabelFromProfile(
+        locationLabel: profile.locationLabel,
+        latitude: profile.locationLatitude,
+        longitude: profile.locationLongitude,
+      );
       final callable = _functions.httpsCallable('getDailyBriefing');
       final response = await callable.call(<String, dynamic>{
-        'locationLabel': profile.locationLabel,
+        'locationLabel': requestLocationLabel,
+        'locationLatitude': profile.locationLatitude,
+        'locationLongitude': profile.locationLongitude,
         'topics': profile.topics,
       });
 
@@ -30,10 +38,15 @@ class BriefingRepository {
   }
 
   BriefingBundle _mockBundle(AppUserProfile profile) {
-    final seed = profile.locationLabel.isEmpty ? 'your area' : profile.locationLabel;
+    final seed = LocationLabelHelper.bestLabelFromProfile(
+      locationLabel: profile.locationLabel,
+      latitude: profile.locationLatitude,
+      longitude: profile.locationLongitude,
+    );
+    final visibleSeed = seed.isEmpty ? 'your area' : seed;
     return BriefingBundle(
       weather: WeatherSummary(
-        location: seed,
+        location: visibleSeed,
         temperature: '72',
         unit: 'Fahrenheit',
         weather: 'Soft sunshine',
@@ -56,7 +69,7 @@ class BriefingRepository {
       localNews: List<ContentCard>.generate(3, (int index) {
         return ContentCard(
           id: 'news_$index',
-          title: 'A calmer local headline ${index + 1} for $seed',
+          title: 'A calmer local headline ${index + 1} for $visibleSeed',
           subtitle: '${index + 6} sources • ${4 + index} min read',
           source: 'Local Roundup',
           link: '',

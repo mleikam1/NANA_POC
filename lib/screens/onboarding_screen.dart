@@ -3,6 +3,8 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 
+import '../utils/location_label_helper.dart';
+
 import '../config/app_config.dart';
 import '../models/app_user_profile.dart';
 import '../theme/nana_theme.dart';
@@ -47,7 +49,11 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     if (existing != null) {
       _selectedTopics.addAll(existing.topics);
       _firstNameController.text = existing.firstName;
-      _locationController.text = existing.locationLabel;
+      _locationController.text = LocationLabelHelper.bestLabelFromProfile(
+        locationLabel: existing.locationLabel,
+        latitude: existing.locationLatitude,
+        longitude: existing.locationLongitude,
+      );
       _selectedLatitude = existing.locationLatitude;
       _selectedLongitude = existing.locationLongitude;
       _notificationEnabled = existing.notificationPreferences.enabled;
@@ -134,11 +140,17 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       if (!mounted) {
         return;
       }
+      final friendlyLabel = await LocationLabelHelper.reverseGeocodeLocationLabel(
+        latitude: position.latitude,
+        longitude: position.longitude,
+      );
+      if (!mounted) {
+        return;
+      }
       setState(() {
         _selectedLatitude = position.latitude;
         _selectedLongitude = position.longitude;
-        _locationController.text =
-            'Current location (${position.latitude.toStringAsFixed(4)}, ${position.longitude.toStringAsFixed(4)})';
+        _locationController.text = friendlyLabel;
         _locationHint =
             'Current location saved. You can still edit city or ZIP code anytime.';
       });
@@ -193,7 +205,12 @@ class _OnboardingScreenState extends State<OnboardingScreen>
         firstName: firstName,
         locationLabel: typedLocationLabel.isNotEmpty
             ? typedLocationLabel
-            : 'Current location',
+            : (_selectedLatitude != null && _selectedLongitude != null)
+                ? LocationLabelHelper.fallbackLatLngLabel(
+                    _selectedLatitude!,
+                    _selectedLongitude!,
+                  )
+                : 'Current location',
         locationLatitude: _selectedLatitude,
         locationLongitude: _selectedLongitude,
         topics: _selectedTopics.toList()..sort(),

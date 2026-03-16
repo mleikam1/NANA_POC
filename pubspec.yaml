@@ -16,6 +16,7 @@ dependencies:
   firebase_messaging: any
   flutter_local_notifications: any
   geolocator: any
+  geocoding: any
   shared_preferences: any
   google_fonts: any
   intl: any
