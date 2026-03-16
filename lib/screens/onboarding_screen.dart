@@ -24,6 +24,7 @@ class OnboardingScreen extends StatefulWidget {
 class _OnboardingScreenState extends State<OnboardingScreen>
     with SingleTickerProviderStateMixin {
   final PageController _pageController = PageController();
+  final TextEditingController _firstNameController = TextEditingController();
   final TextEditingController _locationController = TextEditingController();
 
   late final AnimationController _animationController =
@@ -36,6 +37,8 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   TimeOfDay _selectedTime = const TimeOfDay(hour: 8, minute: 0);
   bool _requestingLocation = false;
   String _locationHint = 'City or ZIP code';
+  double? _selectedLatitude;
+  double? _selectedLongitude;
 
   int _pageIndex = 0;
   bool _saving = false;
@@ -46,7 +49,10 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     final existing = widget.existingProfile;
     if (existing != null) {
       _selectedTopics.addAll(existing.topics);
+      _firstNameController.text = existing.firstName;
       _locationController.text = existing.locationLabel;
+      _selectedLatitude = existing.locationLatitude;
+      _selectedLongitude = existing.locationLongitude;
       _notificationEnabled = existing.notificationPreferences.enabled;
       _fullScreenIntent = existing.notificationPreferences.fullScreenIntent;
       _selectedTime = TimeOfDay(
@@ -66,6 +72,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   void dispose() {
     _animationController.dispose();
     _pageController.dispose();
+    _firstNameController.dispose();
     _locationController.dispose();
     super.dispose();
   }
@@ -104,13 +111,27 @@ class _OnboardingScreenState extends State<OnboardingScreen>
         return;
       }
 
-      final position = await Geolocator.getCurrentPosition();
+      final position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.medium,
+      ).timeout(const Duration(seconds: 10));
+      if (!mounted) {
+        return;
+      }
       setState(() {
+        _selectedLatitude = position.latitude;
+        _selectedLongitude = position.longitude;
         _locationController.text =
             '${position.latitude.toStringAsFixed(4)}, ${position.longitude.toStringAsFixed(4)}';
         _locationHint =
-            'Coordinates saved. Replace with city / ZIP later if needed.';
+            'Current location saved. You can still edit city or ZIP code anytime.';
       });
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _locationHint =
+              'Couldn't fetch your current location. Enter city or ZIP manually.';
+        });
+      }
     } finally {
       if (mounted) {
         setState(() => _requestingLocation = false);
@@ -119,7 +140,17 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   }
 
   Future<void> _finish() async {
-    if (_locationController.text.trim().isEmpty) {
+    final firstName = _firstNameController.text.trim();
+    final locationLabel = _locationController.text.trim();
+
+    if (firstName.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please add your first name.')),
+      );
+      return;
+    }
+
+    if (locationLabel.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please add a city or ZIP code for the briefing.')),
       );
@@ -131,7 +162,10 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       final existingUid = widget.existingProfile?.uid ?? '';
       final profile = AppUserProfile(
         uid: existingUid,
-        locationLabel: _locationController.text.trim(),
+        firstName: firstName,
+        locationLabel: locationLabel,
+        locationLatitude: _selectedLatitude,
+        locationLongitude: _selectedLongitude,
         topics: _selectedTopics.toList()..sort(),
         onboardingComplete: true,
         notificationPreferences: NotificationPreference(
@@ -150,6 +184,11 @@ class _OnboardingScreenState extends State<OnboardingScreen>
         setState(() => _saving = false);
       }
     }
+  }
+
+  bool get _isPersonalizationValid {
+    return _firstNameController.text.trim().isNotEmpty &&
+        _locationController.text.trim().isNotEmpty;
   }
 
   Widget _buildOrb() {
@@ -280,17 +319,33 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       children: <Widget>[
         const SizedBox(height: 18),
         Text(
-          'Where should your briefing feel local?',
+          'Let's personalize your briefing',
           style: Theme.of(context).textTheme.headlineSmall,
         ),
         const SizedBox(height: 12),
         Text(
-          'Enter your city or ZIP code. You can also grant location permission for a faster setup.',
+          'Tell us your name and where you are so we can tailor your weather, local news, and welcome experience.',
           style: Theme.of(context).textTheme.bodyMedium,
         ),
         const SizedBox(height: 24),
         TextField(
+          controller: _firstNameController,
+          textCapitalization: TextCapitalization.words,
+          onChanged: (_) => setState(() {}),
+          decoration: const InputDecoration(
+            hintText: 'First name',
+            prefixIcon: Icon(Icons.sentiment_satisfied_alt_outlined),
+          ),
+        ),
+        const SizedBox(height: 14),
+        TextField(
           controller: _locationController,
+          onChanged: (_) {
+            setState(() {
+              _selectedLatitude = null;
+              _selectedLongitude = null;
+            });
+          },
           decoration: InputDecoration(
             hintText: _locationHint,
             prefixIcon: const Icon(Icons.place_outlined),
@@ -306,7 +361,12 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                   child: CircularProgressIndicator(strokeWidth: 2),
                 )
               : const Icon(Icons.my_location_rounded),
-          label: const Text('Use current location'),
+          label: const Text('Use my current location'),
+        ),
+        const SizedBox(height: 10),
+        Text(
+          'Sharing location helps NANA localize weather and nearby headlines. Prefer not to? Enter city or ZIP instead.',
+          style: Theme.of(context).textTheme.bodySmall,
         ),
         const Spacer(),
       ],
@@ -383,6 +443,15 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   }
 
   Future<void> _next() async {
+    if (_pageIndex == 2 && !_isPersonalizationValid) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please add your first name and location to continue.'),
+        ),
+      );
+      return;
+    }
+
     if (_pageIndex == 3) {
       await _finish();
       return;
@@ -451,7 +520,9 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                   if (_pageIndex > 0) const SizedBox(width: 12),
                   Expanded(
                     child: FilledButton(
-                      onPressed: _saving ? null : _next,
+                      onPressed: _saving || (_pageIndex == 2 && !_isPersonalizationValid)
+                          ? null
+                          : _next,
                       child: _saving
                           ? const SizedBox(
                               width: 18,
