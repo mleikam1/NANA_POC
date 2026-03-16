@@ -14,6 +14,7 @@ class AppUserProfile {
   final String uid;
   final String firstName;
   final String locationLabel;
+  // Stored for downstream weather/news personalization (for example, SerpAPI locality).
   final double? locationLatitude;
   final double? locationLongitude;
   final List<String> topics;
