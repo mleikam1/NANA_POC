@@ -378,7 +378,6 @@ class _IncludedEditorialCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = NanaColors.of(context);
     final titleStyle = prominent
         ? Theme.of(context).textTheme.titleLarge
         : Theme.of(context).textTheme.titleMedium;
@@ -388,29 +387,75 @@ class _IncludedEditorialCard extends StatelessWidget {
         ?.copyWith(height: 0.9);
 
     return Container(
-      padding: EdgeInsets.all(prominent ? 20 : 16),
+      padding: EdgeInsets.all(prominent ? 20 : 14),
       decoration: BoxDecoration(
         color: item.color,
         borderRadius: BorderRadius.circular(prominent ? 30 : 24),
       ),
-      child: horizontal
-          ? Row(
-              children: <Widget>[
-                _CardDecorativeCluster(item: item),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: _CardTextBlock(item: item, countStyle: countStyle, titleStyle: titleStyle),
-                ),
-              ],
-            )
-          : Column(
+      child: prominent
+          ? Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
                 _CardDecorativeCluster(item: item),
                 const Spacer(),
                 _CardTextBlock(item: item, countStyle: countStyle, titleStyle: titleStyle),
               ],
+            )
+          : horizontal
+          ? Row(
+              children: <Widget>[
+                _CompactBadgeIcon(item: item),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: _CardTextBlock(
+                    item: item,
+                    countStyle: countStyle,
+                    titleStyle: titleStyle,
+                    subtitleMaxLines: 1,
+                  ),
+                ),
+              ],
+            )
+          : Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                _CompactBadgeIcon(item: item),
+                const Spacer(),
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Text(item.count, style: countStyle),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  item.label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: titleStyle,
+                ),
+              ],
             ),
+    );
+  }
+}
+
+class _CompactBadgeIcon extends StatelessWidget {
+  const _CompactBadgeIcon({required this.item});
+
+  final _IncludedItem item;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = NanaColors.of(context);
+
+    return Container(
+      width: 30,
+      height: 30,
+      decoration: BoxDecoration(
+        color: colors.ricePaper.withOpacity(0.62),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Icon(item.icon, size: 16),
     );
   }
 }
@@ -452,11 +497,13 @@ class _CardTextBlock extends StatelessWidget {
     required this.item,
     required this.countStyle,
     required this.titleStyle,
+    this.subtitleMaxLines = 2,
   });
 
   final _IncludedItem item;
   final TextStyle? countStyle;
   final TextStyle? titleStyle;
+  final int subtitleMaxLines;
 
   @override
   Widget build(BuildContext context) {
@@ -479,7 +526,7 @@ class _CardTextBlock extends StatelessWidget {
         const SizedBox(height: 2),
         Text(
           item.subtitle,
-          maxLines: 2,
+          maxLines: subtitleMaxLines,
           overflow: TextOverflow.ellipsis,
           style: Theme.of(context).textTheme.bodySmall,
         ),
