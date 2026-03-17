@@ -109,8 +109,15 @@ class _SessionGateState extends State<SessionGate> {
 
   Future<void> _handleOnboardingComplete(AppUserProfile profile) async {
     await _profileRepository.saveProfile(profile);
-    await NotificationService.instance
-        .syncDailyBriefSchedules(profile.notificationPreferences);
+    try {
+      await NotificationService.instance
+          .syncDailyBriefSchedules(profile.notificationPreferences);
+    } catch (error, st) {
+      debugPrint(
+        'ONBOARDING: Notification schedule sync failed, continuing into app: $error',
+      );
+      debugPrint('$st');
+    }
     if (!mounted) return;
     setState(() {
       _profile = profile;
