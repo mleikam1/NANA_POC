@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import '../models/app_user_profile.dart';
 import '../models/briefing_bundle.dart';
 import '../theme/nana_theme.dart';
+import 'in_app_webview_screen.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({
@@ -265,30 +266,41 @@ class _WhatIncludedGrid extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = NanaColors.of(context);
+    final location = profile.locationLabel.trim();
     final items = <_IncludedItem>[
       _IncludedItem(
         count: '${bundle?.localNews.length ?? 0}',
         label: 'Local stories',
-        subtitle: 'Near ${profile.locationLabel.trim().isEmpty ? 'you' : profile.locationLabel.trim()}',
+        subtitle: 'Near ${location.isEmpty ? 'you' : location}',
         color: colors.softGreen,
-        icon: Icons.location_city_outlined,
-        accentIcons: const <IconData>[Icons.fmd_good_outlined, Icons.article_outlined],
+        imagePath: 'assets/images/whats_included/local_stories.png',
+        imageFit: BoxFit.cover,
       ),
       _IncludedItem(
         count: '${bundle?.recipes.length ?? 0}',
-        label: 'Easy recipes',
+        label: 'Recipes',
         subtitle: 'Low-lift dinner ideas',
         color: colors.softYellow,
-        icon: Icons.local_dining_outlined,
-        accentIcons: const <IconData>[Icons.rice_bowl_outlined, Icons.local_cafe_outlined],
+        imagePath: 'assets/images/whats_included/recipes.png',
+        imageFit: BoxFit.contain,
       ),
       _IncludedItem(
-        count: '${bundle?.shortVideos.length ?? 0}',
-        label: 'Short resets',
-        subtitle: 'Mindful moments',
+        count: '1',
+        label: 'Calm game',
+        subtitle: 'A mindful break',
         color: colors.cardBlue,
-        icon: Icons.spa_outlined,
-        accentIcons: const <IconData>[Icons.self_improvement_outlined, Icons.play_circle_outline],
+        imagePath: 'assets/images/whats_included/calm_game.png',
+        imageFit: BoxFit.contain,
+        onTap: () {
+          Navigator.of(context).push(
+            MaterialPageRoute<void>(
+              builder: (_) => const InAppWebViewScreen(
+                title: 'Calm game',
+                url: 'https://games.fotoscapes.com/games/sudoku-blocks/index.html',
+              ),
+            ),
+          );
+        },
       ),
     ];
 
@@ -367,107 +379,85 @@ class _IncludedEditorialCard extends StatelessWidget {
         ?.copyWith(height: 0.9);
 
     return Container(
-      padding: EdgeInsets.all(prominent ? 20 : 14),
       decoration: BoxDecoration(
         color: item.color,
         borderRadius: BorderRadius.circular(prominent ? 30 : 24),
       ),
-      child: prominent
-          ? Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                _CardDecorativeCluster(item: item),
-                const Spacer(),
-                _CardTextBlock(item: item, countStyle: countStyle, titleStyle: titleStyle),
-              ],
-            )
-          : horizontal
-          ? Row(
-              children: <Widget>[
-                _CompactBadgeIcon(item: item),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: _CardTextBlock(
-                    item: item,
-                    countStyle: countStyle,
-                    titleStyle: titleStyle,
-                    subtitleMaxLines: 1,
-                  ),
-                ),
-              ],
-            )
-          : Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                _CompactBadgeIcon(item: item),
-                const Spacer(),
-                FittedBox(
-                  fit: BoxFit.scaleDown,
-                  alignment: Alignment.centerLeft,
-                  child: Text(item.count, style: countStyle),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  item.label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: titleStyle,
-                ),
-              ],
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(prominent ? 30 : 24),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: item.onTap,
+            child: Padding(
+              padding: EdgeInsets.all(prominent ? 20 : 14),
+              child: prominent
+                  ? Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: <Widget>[
+                        _CardArtwork(item: item, prominent: prominent),
+                        const Spacer(),
+                        _CardTextBlock(item: item, countStyle: countStyle, titleStyle: titleStyle),
+                      ],
+                    )
+                  : horizontal
+                  ? Row(
+                      children: <Widget>[
+                        _CardArtwork(item: item, prominent: prominent),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: _CardTextBlock(
+                            item: item,
+                            countStyle: countStyle,
+                            titleStyle: titleStyle,
+                            subtitleMaxLines: 1,
+                          ),
+                        ),
+                      ],
+                    )
+                  : Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: <Widget>[
+                        _CardArtwork(item: item, prominent: prominent),
+                        const Spacer(),
+                        FittedBox(
+                          fit: BoxFit.scaleDown,
+                          alignment: Alignment.centerLeft,
+                          child: Text(item.count, style: countStyle),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          item.label,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: titleStyle,
+                        ),
+                      ],
+                    ),
             ),
-    );
-  }
-}
-
-class _CompactBadgeIcon extends StatelessWidget {
-  const _CompactBadgeIcon({required this.item});
-
-  final _IncludedItem item;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = NanaColors.of(context);
-
-    return Container(
-      width: 30,
-      height: 30,
-      decoration: BoxDecoration(
-        color: colors.ricePaper.withOpacity(0.62),
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Icon(item.icon, size: 16),
-    );
-  }
-}
-
-class _CardDecorativeCluster extends StatelessWidget {
-  const _CardDecorativeCluster({required this.item});
-
-  final _IncludedItem item;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = NanaColors.of(context);
-
-    Widget chip(IconData icon, {double size = 16}) {
-      return Container(
-        width: 34,
-        height: 34,
-        decoration: BoxDecoration(
-          color: colors.ricePaper.withOpacity(0.62),
-          borderRadius: BorderRadius.circular(999),
+          ),
         ),
-        child: Icon(icon, size: size),
-      );
-    }
+      ),
+    );
+  }
+}
 
-    return Wrap(
-      spacing: 8,
-      runSpacing: 8,
-      children: <Widget>[
-        chip(item.icon, size: 17),
-        ...item.accentIcons.map(chip),
-      ],
+class _CardArtwork extends StatelessWidget {
+  const _CardArtwork({required this.item, required this.prominent});
+
+  final _IncludedItem item;
+  final bool prominent;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: prominent ? 118 : 54,
+      width: double.infinity,
+      child: Image(
+        image: AssetImage(item.imagePath),
+        fit: item.imageFit,
+        alignment: prominent ? Alignment.topCenter : Alignment.centerLeft,
+      ),
     );
   }
 }
@@ -521,16 +511,18 @@ class _IncludedItem {
     required this.label,
     required this.subtitle,
     required this.color,
-    required this.icon,
-    required this.accentIcons,
+    required this.imagePath,
+    required this.imageFit,
+    this.onTap,
   });
 
   final String count;
   final String label;
   final String subtitle;
   final Color color;
-  final IconData icon;
-  final List<IconData> accentIcons;
+  final String imagePath;
+  final BoxFit imageFit;
+  final VoidCallback? onTap;
 }
 
 class _AiOverviewCard extends StatelessWidget {
