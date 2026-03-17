@@ -265,7 +265,6 @@ class _WhatIncludedGrid extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = NanaColors.of(context);
-    final weather = bundle?.weather;
     final items = <_IncludedItem>[
       _IncludedItem(
         count: '${bundle?.localNews.length ?? 0}',
@@ -284,18 +283,10 @@ class _WhatIncludedGrid extends StatelessWidget {
         accentIcons: const <IconData>[Icons.rice_bowl_outlined, Icons.local_cafe_outlined],
       ),
       _IncludedItem(
-        count: weather == null ? '--' : weather.temperature,
-        label: weather == null ? 'Weather' : 'Current temp',
-        subtitle: weather == null ? 'Pending forecast' : weather.weather,
-        color: colors.cardBlue,
-        icon: Icons.wb_twilight_outlined,
-        accentIcons: const <IconData>[Icons.wb_sunny_outlined, Icons.air_outlined],
-      ),
-      _IncludedItem(
         count: '${bundle?.shortVideos.length ?? 0}',
         label: 'Short resets',
         subtitle: 'Mindful moments',
-        color: colors.cardSoft,
+        color: colors.cardBlue,
         icon: Icons.spa_outlined,
         accentIcons: const <IconData>[Icons.self_improvement_outlined, Icons.play_circle_outline],
       ),
@@ -307,7 +298,6 @@ class _WhatIncludedGrid extends StatelessWidget {
         final width = constraints.maxWidth;
         final cardWidth = (width - gap) / 2;
         final tallHeight = (cardWidth * 1.42).clamp(228.0, 320.0);
-        final stackedHeight = ((tallHeight - gap) / 2).clamp(108.0, 154.0);
 
         return Column(
           children: <Widget>[
@@ -347,16 +337,6 @@ class _WhatIncludedGrid extends StatelessWidget {
                   ),
                 ),
               ],
-            ),
-            const SizedBox(height: gap),
-            SizedBox(
-              height: stackedHeight,
-              width: double.infinity,
-              child: _IncludedEditorialCard(
-                item: items[3],
-                prominent: false,
-                horizontal: true,
-              ),
             ),
           ],
         );
