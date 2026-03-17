@@ -102,7 +102,7 @@ class _HomeShellState extends State<HomeShell> {
         onProfileChanged: _updateProfile,
         onPreviewNotification: () async {
           await NotificationService.instance.showPreviewBriefing(
-            title: 'Your NANA briefing is ready',
+            title: 'Your NANA calm cue is ready',
             body: 'Take a calm look at today’s local weather, recipes, and resets.',
             fullScreenIntent: _profile.notificationPreferences.fullScreenIntent,
           );

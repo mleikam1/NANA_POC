@@ -50,8 +50,8 @@ class NotificationService {
 
     const androidChannel = AndroidNotificationChannel(
       'nana_briefing_channel',
-      'NANA Briefings',
-      description: 'Daily calm-tech briefing notifications',
+      'NANA Calm Cues',
+      description: 'Daily calm-tech cue notifications',
       importance: Importance.max,
     );
 
@@ -122,13 +122,13 @@ class NotificationService {
           await _scheduleZoned(
             id: daypart.notificationId,
             title: 'Your ${daypart.label.toLowerCase()} is ready',
-            body: 'Take a gentle pause with your NANA briefing.',
+            body: 'Take a calm look at today’s local weather, recipes, and resets.',
             scheduledDate: next,
             notificationDetails: NotificationDetails(
               android: AndroidNotificationDetails(
                 'nana_briefing_channel',
-                'NANA Briefings',
-                channelDescription: 'Daily calm-tech briefing notifications',
+                'NANA Calm Cues',
+                channelDescription: 'Daily calm-tech cue notifications',
                 importance: Importance.max,
                 priority: Priority.high,
                 fullScreenIntent: preference.fullScreenIntent,
@@ -254,8 +254,8 @@ class NotificationService {
       notificationDetails: NotificationDetails(
         android: AndroidNotificationDetails(
           'nana_briefing_channel',
-          'NANA Briefings',
-          channelDescription: 'Daily calm-tech briefing notifications',
+          'NANA Calm Cues',
+          channelDescription: 'Daily calm-tech cue notifications',
           importance: Importance.max,
           priority: Priority.high,
           fullScreenIntent: fullScreenIntent,
@@ -267,9 +267,9 @@ class NotificationService {
   }
 
   Future<void> _showFromRemoteMessage(RemoteMessage message) async {
-    final title = message.notification?.title ?? 'Your NANA briefing is ready';
+    final title = message.notification?.title ?? 'Your NANA calm cue is ready';
     final body =
-        message.notification?.body ?? 'A calmer daily summary is waiting for you.';
+        message.notification?.body ?? 'Take a calm look at today’s local weather, recipes, and resets.';
     final fullScreen = message.data['fullScreenIntent'] == 'true';
 
     await showPreviewBriefing(

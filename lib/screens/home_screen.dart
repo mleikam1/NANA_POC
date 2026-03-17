@@ -39,7 +39,7 @@ class HomeScreen extends StatelessWidget {
               ),
               const SizedBox(height: 6),
               Text(
-                'Morning Briefing\n$dateLabel',
+                'Morning Cue\n$dateLabel',
                 style: Theme.of(context).textTheme.titleLarge,
               ),
               const SizedBox(height: 20),
@@ -133,7 +133,7 @@ class _HeroSummaryCard extends StatelessWidget {
           const SizedBox(height: 18),
           FilledButton(
             onPressed: () {},
-            child: const Text('Open today’s calm brief'),
+            child: const Text('Open today’s calm cue'),
           ),
         ],
       ),
