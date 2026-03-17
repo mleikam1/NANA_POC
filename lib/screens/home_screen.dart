@@ -361,12 +361,10 @@ class _IncludedEditorialCard extends StatelessWidget {
   const _IncludedEditorialCard({
     required this.item,
     required this.prominent,
-    this.horizontal = false,
   });
 
   final _IncludedItem item;
   final bool prominent;
-  final bool horizontal;
 
   @override
   Widget build(BuildContext context) {
@@ -376,87 +374,71 @@ class _IncludedEditorialCard extends StatelessWidget {
     final countStyle = (prominent
             ? Theme.of(context).textTheme.displayLarge
             : Theme.of(context).textTheme.displaySmall)
-        ?.copyWith(height: 0.9);
+        ?.copyWith(height: 0.9, color: const Color(0xFF1F2933));
+    final subtitleStyle = Theme.of(context)
+        .textTheme
+        .bodySmall
+        ?.copyWith(color: const Color(0xFF1F2933).withOpacity(0.78));
+    final radius = BorderRadius.circular(prominent ? 30 : 24);
 
     return Container(
       decoration: BoxDecoration(
         color: item.color,
-        borderRadius: BorderRadius.circular(prominent ? 30 : 24),
+        borderRadius: radius,
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(prominent ? 30 : 24),
+        borderRadius: radius,
         child: Material(
           color: Colors.transparent,
           child: InkWell(
             onTap: item.onTap,
-            child: Padding(
-              padding: EdgeInsets.all(prominent ? 20 : 14),
-              child: prominent
-                  ? Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: <Widget>[
-                        _CardArtwork(item: item, prominent: prominent),
-                        const Spacer(),
-                        _CardTextBlock(item: item, countStyle: countStyle, titleStyle: titleStyle),
-                      ],
-                    )
-                  : horizontal
-                  ? Row(
-                      children: <Widget>[
-                        _CardArtwork(item: item, prominent: prominent),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: _CardTextBlock(
-                            item: item,
-                            countStyle: countStyle,
-                            titleStyle: titleStyle,
-                            subtitleMaxLines: 1,
-                          ),
-                        ),
-                      ],
-                    )
-                  : Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: <Widget>[
-                        _CardArtwork(item: item, prominent: prominent),
-                        const Spacer(),
-                        FittedBox(
-                          fit: BoxFit.scaleDown,
-                          alignment: Alignment.centerLeft,
-                          child: Text(item.count, style: countStyle),
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          item.label,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: titleStyle,
-                        ),
-                      ],
+            child: Stack(
+              children: <Widget>[
+                Positioned.fill(
+                  child: Image(
+                    image: AssetImage(item.imagePath),
+                    fit: prominent ? BoxFit.cover : item.imageFit,
+                    alignment: prominent ? Alignment.topCenter : Alignment.center,
+                  ),
+                ),
+                Positioned.fill(
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: prominent
+                            ? <Color>[
+                                Colors.transparent,
+                                Colors.transparent,
+                                item.color.withOpacity(0.55),
+                                item.color.withOpacity(0.92),
+                              ]
+                            : <Color>[
+                                item.color.withOpacity(0.04),
+                                item.color.withOpacity(0.48),
+                                item.color.withOpacity(0.92),
+                              ],
+                      ),
                     ),
+                  ),
+                ),
+                Positioned(
+                  left: prominent ? 20 : 12,
+                  right: prominent ? 20 : 12,
+                  bottom: prominent ? 20 : 12,
+                  child: _CardTextBlock(
+                    item: item,
+                    countStyle: countStyle,
+                    titleStyle: titleStyle,
+                    subtitleStyle: subtitleStyle,
+                    showSubtitle: prominent,
+                  ),
+                ),
+              ],
             ),
           ),
         ),
-      ),
-    );
-  }
-}
-
-class _CardArtwork extends StatelessWidget {
-  const _CardArtwork({required this.item, required this.prominent});
-
-  final _IncludedItem item;
-  final bool prominent;
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      height: prominent ? 118 : 54,
-      width: double.infinity,
-      child: Image(
-        image: AssetImage(item.imagePath),
-        fit: item.imageFit,
-        alignment: prominent ? Alignment.topCenter : Alignment.centerLeft,
       ),
     );
   }
@@ -467,13 +449,15 @@ class _CardTextBlock extends StatelessWidget {
     required this.item,
     required this.countStyle,
     required this.titleStyle,
-    this.subtitleMaxLines = 2,
+    required this.subtitleStyle,
+    required this.showSubtitle,
   });
 
   final _IncludedItem item;
   final TextStyle? countStyle;
   final TextStyle? titleStyle;
-  final int subtitleMaxLines;
+  final TextStyle? subtitleStyle;
+  final bool showSubtitle;
 
   @override
   Widget build(BuildContext context) {
@@ -493,13 +477,15 @@ class _CardTextBlock extends StatelessWidget {
           overflow: TextOverflow.ellipsis,
           style: titleStyle,
         ),
-        const SizedBox(height: 2),
-        Text(
-          item.subtitle,
-          maxLines: subtitleMaxLines,
-          overflow: TextOverflow.ellipsis,
-          style: Theme.of(context).textTheme.bodySmall,
-        ),
+        if (showSubtitle) ...<Widget>[
+          const SizedBox(height: 2),
+          Text(
+            item.subtitle,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: subtitleStyle,
+          ),
+        ],
       ],
     );
   }
