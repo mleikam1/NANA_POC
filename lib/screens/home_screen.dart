@@ -273,6 +273,7 @@ class _WhatIncludedGrid extends StatelessWidget {
         subtitle: 'Near ${profile.locationLabel.trim().isEmpty ? 'you' : profile.locationLabel.trim()}',
         color: colors.softGreen,
         icon: Icons.location_city_outlined,
+        accentIcons: const <IconData>[Icons.fmd_good_outlined, Icons.article_outlined],
       ),
       _IncludedItem(
         count: '${bundle?.recipes.length ?? 0}',
@@ -280,6 +281,7 @@ class _WhatIncludedGrid extends StatelessWidget {
         subtitle: 'Low-lift dinner ideas',
         color: colors.softYellow,
         icon: Icons.local_dining_outlined,
+        accentIcons: const <IconData>[Icons.rice_bowl_outlined, Icons.local_cafe_outlined],
       ),
       _IncludedItem(
         count: weather == null ? '--' : weather.temperature,
@@ -287,6 +289,7 @@ class _WhatIncludedGrid extends StatelessWidget {
         subtitle: weather == null ? 'Pending forecast' : weather.weather,
         color: colors.cardBlue,
         icon: Icons.wb_twilight_outlined,
+        accentIcons: const <IconData>[Icons.wb_sunny_outlined, Icons.air_outlined],
       ),
       _IncludedItem(
         count: '${bundle?.shortVideos.length ?? 0}',
@@ -294,65 +297,193 @@ class _WhatIncludedGrid extends StatelessWidget {
         subtitle: 'Mindful moments',
         color: colors.cardSoft,
         icon: Icons.spa_outlined,
+        accentIcons: const <IconData>[Icons.self_improvement_outlined, Icons.play_circle_outline],
       ),
     ];
 
-    return GridView.builder(
-      itemCount: items.length,
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        mainAxisExtent: 140,
-        mainAxisSpacing: 12,
-        crossAxisSpacing: 12,
-      ),
-      itemBuilder: (_, int index) {
-        final item = items[index];
-        return Container(
-          padding: const EdgeInsets.all(18),
-          decoration: BoxDecoration(
-            color: item.color,
-            borderRadius: BorderRadius.circular(24),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              Row(
-                children: <Widget>[
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: colors.ricePaper.withOpacity(0.58),
-                      borderRadius: BorderRadius.circular(999),
+    return LayoutBuilder(
+      builder: (BuildContext context, BoxConstraints constraints) {
+        const gap = 12.0;
+        final width = constraints.maxWidth;
+        final cardWidth = (width - gap) / 2;
+        final tallHeight = (cardWidth * 1.42).clamp(228.0, 320.0);
+        final stackedHeight = ((tallHeight - gap) / 2).clamp(108.0, 154.0);
+
+        return Column(
+          children: <Widget>[
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Expanded(
+                  child: SizedBox(
+                    height: tallHeight,
+                    child: _IncludedEditorialCard(
+                      item: items[0],
+                      prominent: true,
                     ),
-                    child: Icon(item.icon, size: 16),
                   ),
-                  const Spacer(),
-                  Icon(Icons.auto_awesome, size: 14, color: colors.earthUmber.withOpacity(0.6)),
-                ],
+                ),
+                const SizedBox(width: gap),
+                Expanded(
+                  child: SizedBox(
+                    height: tallHeight,
+                    child: Column(
+                      children: <Widget>[
+                        Expanded(
+                          child: _IncludedEditorialCard(
+                            item: items[1],
+                            prominent: false,
+                          ),
+                        ),
+                        const SizedBox(height: gap),
+                        Expanded(
+                          child: _IncludedEditorialCard(
+                            item: items[2],
+                            prominent: false,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: gap),
+            SizedBox(
+              height: stackedHeight,
+              width: double.infinity,
+              child: _IncludedEditorialCard(
+                item: items[3],
+                prominent: false,
+                horizontal: true,
               ),
-              const SizedBox(height: 14),
-              Text(
-                item.count,
-                style: Theme.of(context).textTheme.displaySmall?.copyWith(height: 0.9),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                item.label,
-                style: Theme.of(context).textTheme.titleMedium,
-              ),
-              const SizedBox(height: 2),
-              Text(
-                item.subtitle,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
-            ],
-          ),
+            ),
+          ],
         );
       },
+    );
+  }
+}
+
+class _IncludedEditorialCard extends StatelessWidget {
+  const _IncludedEditorialCard({
+    required this.item,
+    required this.prominent,
+    this.horizontal = false,
+  });
+
+  final _IncludedItem item;
+  final bool prominent;
+  final bool horizontal;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = NanaColors.of(context);
+    final titleStyle = prominent
+        ? Theme.of(context).textTheme.titleLarge
+        : Theme.of(context).textTheme.titleMedium;
+    final countStyle = (prominent
+            ? Theme.of(context).textTheme.displayLarge
+            : Theme.of(context).textTheme.displaySmall)
+        ?.copyWith(height: 0.9);
+
+    return Container(
+      padding: EdgeInsets.all(prominent ? 20 : 16),
+      decoration: BoxDecoration(
+        color: item.color,
+        borderRadius: BorderRadius.circular(prominent ? 30 : 24),
+      ),
+      child: horizontal
+          ? Row(
+              children: <Widget>[
+                _CardDecorativeCluster(item: item),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: _CardTextBlock(item: item, countStyle: countStyle, titleStyle: titleStyle),
+                ),
+              ],
+            )
+          : Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                _CardDecorativeCluster(item: item),
+                const Spacer(),
+                _CardTextBlock(item: item, countStyle: countStyle, titleStyle: titleStyle),
+              ],
+            ),
+    );
+  }
+}
+
+class _CardDecorativeCluster extends StatelessWidget {
+  const _CardDecorativeCluster({required this.item});
+
+  final _IncludedItem item;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = NanaColors.of(context);
+
+    Widget chip(IconData icon, {double size = 16}) {
+      return Container(
+        width: 34,
+        height: 34,
+        decoration: BoxDecoration(
+          color: colors.ricePaper.withOpacity(0.62),
+          borderRadius: BorderRadius.circular(999),
+        ),
+        child: Icon(icon, size: size),
+      );
+    }
+
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: <Widget>[
+        chip(item.icon, size: 17),
+        ...item.accentIcons.map(chip),
+      ],
+    );
+  }
+}
+
+class _CardTextBlock extends StatelessWidget {
+  const _CardTextBlock({
+    required this.item,
+    required this.countStyle,
+    required this.titleStyle,
+  });
+
+  final _IncludedItem item;
+  final TextStyle? countStyle;
+  final TextStyle? titleStyle;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: <Widget>[
+        FittedBox(
+          fit: BoxFit.scaleDown,
+          alignment: Alignment.centerLeft,
+          child: Text(item.count, style: countStyle),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          item.label,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: titleStyle,
+        ),
+        const SizedBox(height: 2),
+        Text(
+          item.subtitle,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          style: Theme.of(context).textTheme.bodySmall,
+        ),
+      ],
     );
   }
 }
@@ -364,6 +495,7 @@ class _IncludedItem {
     required this.subtitle,
     required this.color,
     required this.icon,
+    required this.accentIcons,
   });
 
   final String count;
@@ -371,6 +503,7 @@ class _IncludedItem {
   final String subtitle;
   final Color color;
   final IconData icon;
+  final List<IconData> accentIcons;
 }
 
 class _AiOverviewCard extends StatelessWidget {
