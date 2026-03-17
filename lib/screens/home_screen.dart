@@ -43,23 +43,27 @@ class HomeScreen extends StatelessWidget {
                 style: Theme.of(context).textTheme.titleLarge,
               ),
               const SizedBox(height: 20),
+              _WeatherHeroCard(
+                profile: profile,
+                weather: bundle?.weather,
+                loading: loading && bundle == null,
+              ),
+              const SizedBox(height: 20),
               if (loading && bundle == null)
                 const _LoadingBlock()
               else ...<Widget>[
-                _HeroSummaryCard(
-                  profile: profile,
-                  bundle: bundle,
-                ),
-                const SizedBox(height: 20),
                 _SectionHeader(
-                  title: 'What’s included',
+                  title: 'What’s Included',
                   cta: 'Refresh',
                   onTap: () {
                     onRefresh();
                   },
                 ),
                 const SizedBox(height: 12),
-                _WhatIncludedGrid(bundle: bundle),
+                _WhatIncludedGrid(
+                  profile: profile,
+                  bundle: bundle,
+                ),
                 const SizedBox(height: 20),
                 const _SectionHeader(title: 'Today’s nana note'),
                 const SizedBox(height: 12),
@@ -79,19 +83,35 @@ class HomeScreen extends StatelessWidget {
   }
 }
 
-class _HeroSummaryCard extends StatelessWidget {
-  const _HeroSummaryCard({
+class _WeatherHeroCard extends StatelessWidget {
+  const _WeatherHeroCard({
     required this.profile,
-    required this.bundle,
+    required this.weather,
+    required this.loading,
   });
 
   final AppUserProfile profile;
-  final BriefingBundle? bundle;
+  final WeatherSummary? weather;
+  final bool loading;
 
   @override
   Widget build(BuildContext context) {
-    final weather = bundle?.weather;
     final colors = NanaColors.of(context);
+    final defaultLocation = profile.locationLabel.trim().isEmpty
+        ? 'Your area'
+        : profile.locationLabel.trim();
+    final hasWeather = weather != null;
+    final location = hasWeather && weather!.location.trim().isNotEmpty
+        ? weather!.location
+        : defaultLocation;
+    final high = hasWeather && weather!.forecast.isNotEmpty
+        ? weather!.forecast.first.high
+        : '--';
+    final low = hasWeather && weather!.forecast.isNotEmpty
+        ? weather!.forecast.first.low
+        : '--';
+    final hourly = hasWeather ? weather!.hourlyForecast.take(6).toList() : const <WeatherForecastHour>[];
+
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -102,38 +122,130 @@ class _HeroSummaryCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
           Text(
-            'Your daily companion is ready',
-            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  color: colors.earthUmber,
+            location,
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  color: colors.earthUmber.withOpacity(0.85),
                 ),
           ),
-          const SizedBox(height: 12),
-          Text(
-            weather == null
-                ? 'We’re building your calm-tech feed.'
-                : '${weather.weather} in ${weather.location}. ${weather.temperature}° and a gentle place to start your day.',
-            style: Theme.of(context).textTheme.bodyLarge,
-          ),
-          const SizedBox(height: 18),
-          Wrap(
-            spacing: 10,
-            runSpacing: 10,
+          const SizedBox(height: 16),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
-              _MiniPill(
-                label: '${bundle?.localNews.length ?? 0} local stories',
+              Expanded(
+                child: Text(
+                  loading
+                      ? '--°'
+                      : hasWeather
+                          ? '${weather!.temperature}°'
+                          : '--°',
+                  style: Theme.of(context).textTheme.displayLarge?.copyWith(
+                        color: colors.earthUmber,
+                        height: 0.9,
+                      ),
+                ),
               ),
-              _MiniPill(
-                label: '${bundle?.recipes.length ?? 0} recipe ideas',
-              ),
-              _MiniPill(
-                label: '${bundle?.shortVideos.length ?? 0} short resets',
+              const SizedBox(width: 12),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: <Widget>[
+                  Text(
+                    loading
+                        ? 'Loading forecast...'
+                        : hasWeather && weather!.weather.trim().isNotEmpty
+                            ? weather!.weather
+                            : 'Weather update will appear soon',
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          color: colors.earthUmber,
+                        ),
+                    textAlign: TextAlign.end,
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    'H:$high°  L:$low°',
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: colors.earthUmber.withOpacity(0.7),
+                        ),
+                  ),
+                ],
               ),
             ],
           ),
-          const SizedBox(height: 18),
-          FilledButton(
-            onPressed: () {},
-            child: const Text('Open today’s calm cue'),
+          const SizedBox(height: 16),
+          if (hourly.isNotEmpty)
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: hourly
+                    .map((WeatherForecastHour hour) => Padding(
+                          padding: const EdgeInsets.only(right: 10),
+                          child: _HourlyForecastChip(hour: hour),
+                        ))
+                    .toList(),
+              ),
+            )
+          else
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              decoration: BoxDecoration(
+                color: colors.ricePaper.withOpacity(0.6),
+                borderRadius: BorderRadius.circular(18),
+              ),
+              child: Text(
+                loading
+                    ? 'Finding today’s weather moments...'
+                    : 'We’ll bring in your hourly outlook as soon as it’s ready.',
+                style: Theme.of(context).textTheme.bodyMedium,
+              ),
+            ),
+          if (!loading && !hasWeather) ...<Widget>[
+            const SizedBox(height: 12),
+            Text(
+              'Pull to refresh in a moment and we’ll try your local weather again.',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _HourlyForecastChip extends StatelessWidget {
+  const _HourlyForecastChip({required this.hour});
+
+  final WeatherForecastHour hour;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = NanaColors.of(context);
+    return Container(
+      width: 88,
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
+      decoration: BoxDecoration(
+        color: colors.ricePaper.withOpacity(0.72),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Text(
+            hour.time,
+            style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                  color: colors.earthUmber.withOpacity(0.75),
+                ),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            '${hour.temperature}°',
+            style: Theme.of(context).textTheme.titleLarge,
+          ),
+          const SizedBox(height: 4),
+          Text(
+            hour.weather,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: Theme.of(context).textTheme.bodySmall,
           ),
         ],
       ),
@@ -141,27 +253,13 @@ class _HeroSummaryCard extends StatelessWidget {
   }
 }
 
-class _MiniPill extends StatelessWidget {
-  const _MiniPill({required this.label});
-
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-      decoration: BoxDecoration(
-        color: NanaColors.of(context).ricePaper.withOpacity(0.75),
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Text(label),
-    );
-  }
-}
-
 class _WhatIncludedGrid extends StatelessWidget {
-  const _WhatIncludedGrid({required this.bundle});
+  const _WhatIncludedGrid({
+    required this.profile,
+    required this.bundle,
+  });
 
+  final AppUserProfile profile;
   final BriefingBundle? bundle;
 
   @override
@@ -171,23 +269,31 @@ class _WhatIncludedGrid extends StatelessWidget {
     final items = <_IncludedItem>[
       _IncludedItem(
         count: '${bundle?.localNews.length ?? 0}',
-        label: 'Places to visit',
+        label: 'Local stories',
+        subtitle: 'Near ${profile.locationLabel.trim().isEmpty ? 'you' : profile.locationLabel.trim()}',
         color: colors.softGreen,
+        icon: Icons.location_city_outlined,
       ),
       _IncludedItem(
         count: '${bundle?.recipes.length ?? 0}',
-        label: 'Recipes to try',
+        label: 'Easy recipes',
+        subtitle: 'Low-lift dinner ideas',
         color: colors.softYellow,
+        icon: Icons.local_dining_outlined,
       ),
       _IncludedItem(
         count: weather == null ? '--' : weather.temperature,
         label: weather == null ? 'Weather' : 'Current temp',
+        subtitle: weather == null ? 'Pending forecast' : weather.weather,
         color: colors.cardBlue,
+        icon: Icons.wb_twilight_outlined,
       ),
       _IncludedItem(
         count: '${bundle?.shortVideos.length ?? 0}',
         label: 'Short resets',
+        subtitle: 'Mindful moments',
         color: colors.cardSoft,
+        icon: Icons.spa_outlined,
       ),
     ];
 
@@ -212,14 +318,36 @@ class _WhatIncludedGrid extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
+              Row(
+                children: <Widget>[
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: colors.ricePaper.withOpacity(0.58),
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: Icon(item.icon, size: 16),
+                  ),
+                  const Spacer(),
+                  Icon(Icons.auto_awesome, size: 14, color: colors.earthUmber.withOpacity(0.6)),
+                ],
+              ),
+              const SizedBox(height: 14),
               Text(
                 item.count,
-                style: Theme.of(context).textTheme.displaySmall,
+                style: Theme.of(context).textTheme.displaySmall?.copyWith(height: 0.9),
               ),
-              const Spacer(),
+              const SizedBox(height: 6),
               Text(
                 item.label,
                 style: Theme.of(context).textTheme.titleMedium,
+              ),
+              const SizedBox(height: 2),
+              Text(
+                item.subtitle,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.bodySmall,
               ),
             ],
           ),
@@ -233,12 +361,16 @@ class _IncludedItem {
   const _IncludedItem({
     required this.count,
     required this.label,
+    required this.subtitle,
     required this.color,
+    required this.icon,
   });
 
   final String count;
   final String label;
+  final String subtitle;
   final Color color;
+  final IconData icon;
 }
 
 class _AiOverviewCard extends StatelessWidget {
