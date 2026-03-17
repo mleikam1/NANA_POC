@@ -21,6 +21,7 @@ dependencies:
   google_fonts: any
   intl: any
   http: any
+  timezone: any
 
 dev_dependencies:
   flutter_test:
