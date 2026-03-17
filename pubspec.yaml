@@ -22,6 +22,7 @@ dependencies:
   intl: any
   http: any
   timezone: any
+  webview_flutter: ^4.8.0
 
 dev_dependencies:
   flutter_test:
@@ -30,5 +31,5 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
-assets:
-  assets/images/whats_included:
+  assets:
+    - assets/images/whats_included/
