@@ -109,6 +109,8 @@ class _SessionGateState extends State<SessionGate> {
 
   Future<void> _handleOnboardingComplete(AppUserProfile profile) async {
     await _profileRepository.saveProfile(profile);
+    await NotificationService.instance
+        .syncDailyBriefSchedules(profile.notificationPreferences);
     if (!mounted) return;
     setState(() {
       _profile = profile;

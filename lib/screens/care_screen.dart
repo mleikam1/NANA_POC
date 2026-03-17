@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../models/app_user_profile.dart';
-import '../utils/location_label_helper.dart';
 import '../services/notification_service.dart';
+import '../utils/location_label_helper.dart';
 
 class CareScreen extends StatefulWidget {
   const CareScreen({
@@ -32,10 +32,8 @@ class _CareScreenState extends State<CareScreen> {
   late bool _enabled = widget.profile.notificationPreferences.enabled;
   late bool _fullScreenIntent =
       widget.profile.notificationPreferences.fullScreenIntent;
-  late TimeOfDay _time = TimeOfDay(
-    hour: widget.profile.notificationPreferences.hour,
-    minute: widget.profile.notificationPreferences.minute,
-  );
+  late Map<String, BriefSchedule> _briefSchedules =
+      widget.profile.notificationPreferences.resolvedBriefSchedules;
 
   bool _saving = false;
 
@@ -45,13 +43,23 @@ class _CareScreenState extends State<CareScreen> {
     super.dispose();
   }
 
-  Future<void> _selectTime() async {
+  Future<void> _selectTime(BriefDaypart daypart) async {
+    final current = _briefSchedules[daypart.key]!;
     final selection = await showTimePicker(
       context: context,
-      initialTime: _time,
+      initialTime: TimeOfDay(hour: current.hour, minute: current.minute),
     );
     if (selection != null) {
-      setState(() => _time = selection);
+      setState(() {
+        _briefSchedules = <String, BriefSchedule>{
+          ..._briefSchedules,
+          daypart.key: current.copyWith(
+            hour: selection.hour,
+            minute: selection.minute,
+            userSelectedTime: true,
+          ),
+        };
+      });
     }
   }
 
@@ -62,9 +70,10 @@ class _CareScreenState extends State<CareScreen> {
         locationLabel: _locationController.text.trim(),
         notificationPreferences: widget.profile.notificationPreferences.copyWith(
           enabled: _enabled,
-          hour: _time.hour,
-          minute: _time.minute,
+          hour: _briefSchedules[BriefDaypart.morning.key]!.hour,
+          minute: _briefSchedules[BriefDaypart.morning.key]!.minute,
           fullScreenIntent: _fullScreenIntent,
+          briefSchedules: _briefSchedules,
         ),
       );
       await widget.onProfileChanged(profile);
@@ -127,18 +136,38 @@ class _CareScreenState extends State<CareScreen> {
           SwitchListTile.adaptive(
             value: _enabled,
             title: const Text('Daily briefing schedule'),
-            subtitle: const Text('Turn on scheduled prompts for your calm-tech briefing'),
+            subtitle: const Text(
+              'Turn on scheduled prompts for your calm-tech briefing',
+            ),
             onChanged: (bool value) => setState(() => _enabled = value),
           ),
-          ListTile(
-            contentPadding: EdgeInsets.zero,
-            title: const Text('Delivery time'),
-            subtitle: Text(_time.format(context)),
-            trailing: OutlinedButton(
-              onPressed: _selectTime,
-              child: const Text('Change'),
+          for (final daypart in BriefDaypart.values)
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              title: Text(daypart.label),
+              subtitle: Text(
+                TimeOfDay(
+                  hour: _briefSchedules[daypart.key]!.hour,
+                  minute: _briefSchedules[daypart.key]!.minute,
+                ).format(context),
+              ),
+              leading: Switch.adaptive(
+                value: _briefSchedules[daypart.key]!.enabled,
+                onChanged: (bool value) {
+                  setState(() {
+                    _briefSchedules = <String, BriefSchedule>{
+                      ..._briefSchedules,
+                      daypart.key: _briefSchedules[daypart.key]!
+                          .copyWith(enabled: value),
+                    };
+                  });
+                },
+              ),
+              trailing: OutlinedButton(
+                onPressed: () => _selectTime(daypart),
+                child: const Text('Change'),
+              ),
             ),
-          ),
           SwitchListTile.adaptive(
             value: _fullScreenIntent,
             title: const Text('Android full-screen preview path'),

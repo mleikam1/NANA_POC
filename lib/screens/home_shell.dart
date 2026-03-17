@@ -66,6 +66,8 @@ class _HomeShellState extends State<HomeShell> {
 
   Future<void> _updateProfile(AppUserProfile profile) async {
     await widget.profileRepository.saveProfile(profile);
+    await NotificationService.instance
+        .syncDailyBriefSchedules(profile.notificationPreferences);
     if (!mounted) return;
     setState(() => _profile = profile);
   }

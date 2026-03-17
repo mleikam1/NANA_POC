@@ -33,7 +33,8 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   final Set<String> _selectedTopics = <String>{};
   bool _notificationEnabled = true;
   bool _fullScreenIntent = true;
-  TimeOfDay _selectedTime = const TimeOfDay(hour: 8, minute: 0);
+  Map<String, BriefSchedule> _briefSchedules =
+      NotificationPreference.defaultBriefSchedules();
   bool _requestingLocation = false;
   String _locationHint = "City or ZIP code";
   double? _selectedLatitude;
@@ -58,10 +59,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       _selectedLongitude = existing.locationLongitude;
       _notificationEnabled = existing.notificationPreferences.enabled;
       _fullScreenIntent = existing.notificationPreferences.fullScreenIntent;
-      _selectedTime = TimeOfDay(
-        hour: existing.notificationPreferences.hour,
-        minute: existing.notificationPreferences.minute,
-      );
+      _briefSchedules = existing.notificationPreferences.resolvedBriefSchedules;
     } else {
       _selectedTopics.addAll(const <String>[
         'Local News',
@@ -79,13 +77,23 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     super.dispose();
   }
 
-  Future<void> _chooseTime() async {
+  Future<void> _chooseDaypartTime(BriefDaypart daypart) async {
+    final schedule = _briefSchedules[daypart.key]!;
     final selected = await showTimePicker(
       context: context,
-      initialTime: _selectedTime,
+      initialTime: TimeOfDay(hour: schedule.hour, minute: schedule.minute),
     );
     if (selected != null) {
-      setState(() => _selectedTime = selected);
+      setState(() {
+        _briefSchedules = <String, BriefSchedule>{
+          ..._briefSchedules,
+          daypart.key: schedule.copyWith(
+            hour: selected.hour,
+            minute: selected.minute,
+            userSelectedTime: true,
+          ),
+        };
+      });
     }
   }
 
@@ -217,10 +225,13 @@ class _OnboardingScreenState extends State<OnboardingScreen>
         onboardingComplete: true,
         notificationPreferences: NotificationPreference(
           enabled: _notificationEnabled,
-          hour: _selectedTime.hour,
-          minute: _selectedTime.minute,
-          timeZone: 'America/Chicago',
+          hour: _briefSchedules[BriefDaypart.morning.key]!.hour,
+          minute: _briefSchedules[BriefDaypart.morning.key]!.minute,
+          timeZone: widget.existingProfile?.notificationPreferences.timeZone.isNotEmpty == true
+              ? widget.existingProfile!.notificationPreferences.timeZone
+              : DateTime.now().timeZoneName,
           fullScreenIntent: _fullScreenIntent,
+          briefSchedules: _briefSchedules,
         ),
         messagingTokens: widget.existingProfile?.messagingTokens ?? const [],
       );
@@ -240,6 +251,10 @@ class _OnboardingScreenState extends State<OnboardingScreen>
 
   bool get _isPersonalizationValid {
     return _firstNameController.text.trim().isNotEmpty && _hasLocationValue;
+  }
+
+  bool get _hasSelectedDaypart {
+    return _briefSchedules.values.any((schedule) => schedule.enabled);
   }
 
   Widget _introPage() {
@@ -379,12 +394,12 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       children: <Widget>[
         const SizedBox(height: 18),
         Text(
-          'Choose your daily calm moment',
+          'Choose your calm moments',
           style: Theme.of(context).textTheme.headlineSmall,
         ),
         const SizedBox(height: 12),
         Text(
-          'Set the time you want your briefing delivered. For Android, this starter also includes a full-screen-intent preview path for POC testing.',
+          'Morning and evening are ready by default. Add afternoon or night anytime, and choose when you’d like each brief to arrive.',
           style: Theme.of(context).textTheme.bodyMedium,
         ),
         const SizedBox(height: 24),
@@ -392,40 +407,74 @@ class _OnboardingScreenState extends State<OnboardingScreen>
           value: _notificationEnabled,
           contentPadding: EdgeInsets.zero,
           title: const Text('Daily briefing notifications'),
-          subtitle: const Text('A scheduled prompt for your daily calm-tech briefing'),
+          subtitle: const Text('Receive gentle check-ins throughout your day'),
           onChanged: (bool value) => setState(() => _notificationEnabled = value),
         ),
-        Container(
-          padding: const EdgeInsets.all(18),
-          decoration: BoxDecoration(
-            color: colors.cardSoft,
-            borderRadius: BorderRadius.circular(24),
+        if (_notificationEnabled)
+          Expanded(
+            child: ListView(
+              padding: EdgeInsets.zero,
+              children: BriefDaypart.values.map((daypart) {
+                final schedule = _briefSchedules[daypart.key]!;
+                final timeText = TimeOfDay(
+                  hour: schedule.hour,
+                  minute: schedule.minute,
+                ).format(context);
+                return Container(
+                  margin: const EdgeInsets.only(top: 12),
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: colors.cardSoft,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Column(
+                    children: <Widget>[
+                      Row(
+                        children: <Widget>[
+                          Expanded(
+                            child: Text(
+                              daypart.label,
+                              style: Theme.of(context).textTheme.titleMedium,
+                            ),
+                          ),
+                          Switch.adaptive(
+                            value: schedule.enabled,
+                            onChanged: (bool value) {
+                              setState(() {
+                                _briefSchedules = <String, BriefSchedule>{
+                                  ..._briefSchedules,
+                                  daypart.key: schedule.copyWith(enabled: value),
+                                };
+                              });
+                            },
+                          ),
+                        ],
+                      ),
+                      Row(
+                        children: <Widget>[
+                          Text(
+                            timeText,
+                            style: Theme.of(context).textTheme.bodyLarge,
+                          ),
+                          const SizedBox(width: 12),
+                          OutlinedButton(
+                            onPressed: () => _chooseDaypartTime(daypart),
+                            child: const Text('Change time'),
+                          ),
+                          const Spacer(),
+                          Text(
+                            schedule.userSelectedTime ? 'Custom' : 'Recommended',
+                            style: Theme.of(context).textTheme.bodySmall,
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                );
+              }).toList(),
+            ),
           ),
-          child: Row(
-            children: <Widget>[
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    Text(
-                      'Scheduled delivery',
-                      style: Theme.of(context).textTheme.titleMedium,
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      '${_selectedTime.format(context)} every day',
-                      style: Theme.of(context).textTheme.bodyLarge,
-                    ),
-                  ],
-                ),
-              ),
-              OutlinedButton(
-                onPressed: _chooseTime,
-                child: const Text('Change'),
-              ),
-            ],
-          ),
-        ),
+        if (!_notificationEnabled) const Spacer(),
         const SizedBox(height: 16),
         SwitchListTile.adaptive(
           value: _fullScreenIntent,
@@ -436,7 +485,6 @@ class _OnboardingScreenState extends State<OnboardingScreen>
           ),
           onChanged: (bool value) => setState(() => _fullScreenIntent = value),
         ),
-        const Spacer(),
       ],
     );
   }
@@ -452,6 +500,12 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     }
 
     if (_pageIndex == 3) {
+      if (_notificationEnabled && !_hasSelectedDaypart) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Select at least one calm moment to continue.')),
+        );
+        return;
+      }
       await _finish();
       return;
     }
