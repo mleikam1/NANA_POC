@@ -91,7 +91,7 @@ class NotificationService {
 
   Future<void> syncDailyBriefSchedules(NotificationPreference preference) async {
     for (final daypart in BriefDaypart.values) {
-      await _localNotifications.cancel(daypart.notificationId);
+      await _localNotifications.cancel(id: daypart.notificationId);
     }
 
     if (!preference.enabled) {
