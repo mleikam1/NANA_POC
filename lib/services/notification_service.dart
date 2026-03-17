@@ -112,11 +112,11 @@ class NotificationService {
         schedule.minute,
       );
       await _localNotifications.zonedSchedule(
-        daypart.notificationId,
-        'Your ${daypart.label.toLowerCase()} is ready',
-        'Take a gentle pause with your NANA briefing.',
-        next,
-        NotificationDetails(
+        id: daypart.notificationId,
+        title: 'Your ${daypart.label.toLowerCase()} is ready',
+        body: 'Take a gentle pause with your NANA briefing.',
+        scheduledDate: next,
+        notificationDetails: NotificationDetails(
           android: AndroidNotificationDetails(
             'nana_briefing_channel',
             'NANA Briefings',
