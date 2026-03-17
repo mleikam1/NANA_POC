@@ -135,9 +135,9 @@ class _CareScreenState extends State<CareScreen> {
           const SizedBox(height: 18),
           SwitchListTile.adaptive(
             value: _enabled,
-            title: const Text('Daily briefing schedule'),
+            title: const Text('Daily calm cue schedule'),
             subtitle: const Text(
-              'Turn on scheduled prompts for your calm-tech briefing',
+              'Turn on scheduled prompts for your calm-tech cues',
             ),
             onChanged: (bool value) => setState(() => _enabled = value),
           ),
@@ -179,7 +179,7 @@ class _CareScreenState extends State<CareScreen> {
           const SizedBox(height: 12),
           FilledButton.tonal(
             onPressed: widget.onPreviewNotification,
-            child: const Text('Preview briefing notification'),
+            child: const Text('Preview calm cue notification'),
           ),
           const SizedBox(height: 12),
           Text(

@@ -251,13 +251,13 @@ extension BriefDaypartX on BriefDaypart {
   String get label {
     switch (this) {
       case BriefDaypart.morning:
-        return 'Morning brief';
+        return 'Morning cue';
       case BriefDaypart.afternoon:
-        return 'Afternoon brief';
+        return 'Afternoon cue';
       case BriefDaypart.evening:
-        return 'Evening brief';
+        return 'Evening cue';
       case BriefDaypart.night:
-        return 'Night brief';
+        return 'Night cue';
     }
   }
 

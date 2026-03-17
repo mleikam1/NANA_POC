@@ -160,11 +160,11 @@ export const sendScheduledBriefings = onSchedule(
         }
       }
 
-      const title = 'Your NANA briefing is ready';
+      const title = 'Your NANA calm cue is ready';
       const body =
         bundle?.weather?.weather && bundle?.weather?.temperature
-          ? `${bundle.weather.weather} and ${bundle.weather.temperature}° in ${bundle.weather.location}. Open your calmer daily companion.`
-          : 'A calmer daily summary is waiting for you.';
+          ? `${bundle.weather.weather} and ${bundle.weather.temperature}° in ${bundle.weather.location}. Open today’s calm cue.`
+          : "Take a calm look at today's local weather, recipes, and resets.";
 
       try {
         await messaging.sendEachForMulticast({

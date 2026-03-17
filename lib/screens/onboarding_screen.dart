@@ -333,7 +333,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       children: <Widget>[
         const SizedBox(height: 18),
         Text(
-          "Let's personalize your briefing",
+          "Let's personalize your calm cues",
           style: Theme.of(context).textTheme.headlineSmall,
         ),
         const SizedBox(height: 12),
@@ -394,19 +394,19 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       children: <Widget>[
         const SizedBox(height: 18),
         Text(
-          'Choose your calm moments',
+          'Choose your calm cues',
           style: Theme.of(context).textTheme.headlineSmall,
         ),
         const SizedBox(height: 12),
         Text(
-          'Morning and evening are ready by default. Add afternoon or night anytime, and choose when you’d like each brief to arrive.',
+          'Morning and evening are ready by default. Add afternoon or night anytime, and choose when you’d like each cue to arrive.',
           style: Theme.of(context).textTheme.bodyMedium,
         ),
         const SizedBox(height: 24),
         SwitchListTile.adaptive(
           value: _notificationEnabled,
           contentPadding: EdgeInsets.zero,
-          title: const Text('Daily briefing notifications'),
+          title: const Text('Daily calm cue notifications'),
           subtitle: const Text('Receive gentle check-ins throughout your day'),
           onChanged: (bool value) => setState(() => _notificationEnabled = value),
         ),
@@ -502,7 +502,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     if (_pageIndex == 3) {
       if (_notificationEnabled && !_hasSelectedDaypart) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Select at least one calm moment to continue.')),
+          const SnackBar(content: Text('Select at least one calm cue to continue.')),
         );
         return;
       }
