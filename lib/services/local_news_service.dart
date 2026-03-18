@@ -61,7 +61,7 @@ class LocalNewsService {
     final cached = await readCachedResult(location.normalizedCacheKey);
     final hasFreshCache = cached != null &&
         _now().difference(cached.generatedAt) <= _resultTtl &&
-        cached.stories.isNotEmpty;
+        cached.stories.length == _storyLimit;
 
     if (!forceRefresh && hasFreshCache) {
       return cached;
@@ -71,29 +71,32 @@ class LocalNewsService {
       final apiKey = _apiKey ?? AppConfig.serpApiKey;
       if (apiKey.trim().isEmpty) {
         throw const LocalNewsException(
-          'SERPAPI_API_KEY is missing. Add it with --dart-define before running the app.',
+          'SerpApi key is missing in AppConfig.serpApiKey for the Local News POC.',
         );
       }
 
       final rawStories = await _searchStories(
         location: location,
         apiKey: apiKey,
+        forceRefresh: forceRefresh,
       );
 
-      if (rawStories.isEmpty) {
+      if (rawStories.length < _storyLimit) {
         throw const LocalNewsException(
-          'No local stories were available for this saved location just now.',
+          'We could not find five local stories for this saved location just now.',
         );
       }
 
       final summarizedStories = await _summarizeStories(rawStories);
       final result = LocalNewsResult(
         location: location,
-        stories: summarizedStories,
+        stories: summarizedStories.take(_storyLimit).toList(),
         generatedAt: _now(),
         isStale: false,
         usedCache: false,
-        isPartial: summarizedStories.any((LocalNewsStory story) => story.extractionFailed),
+        isPartial: summarizedStories.any(
+          (LocalNewsStory story) => story.extractionFailed,
+        ),
         errorMessage: null,
       );
       await prefs.setString(
@@ -102,7 +105,7 @@ class LocalNewsService {
       );
       return result;
     } catch (error) {
-      if (cached != null && cached.stories.isNotEmpty) {
+      if (cached != null && cached.stories.length == _storyLimit) {
         final stale = LocalNewsResult(
           location: cached.location,
           stories: cached.stories
@@ -220,11 +223,15 @@ class LocalNewsService {
 
     if (city.isNotEmpty && stateOrRegion.isNotEmpty) {
       queries.add('$city $stateOrRegion local news');
+      queries.add('$city $stateOrRegion breaking news');
+      queries.add('$city $stateOrRegion community news');
     }
     if (city.isNotEmpty) {
+      queries.add('$city local news');
       queries.add('$city news');
     }
     if (countyOrMetro.isNotEmpty) {
+      queries.add('$countyOrMetro local news');
       queries.add('$countyOrMetro news');
     }
     if (label.isNotEmpty) {
@@ -233,9 +240,8 @@ class LocalNewsService {
       queries.add(
         'local news near ${location.latitude!.toStringAsFixed(2)},${location.longitude!.toStringAsFixed(2)}',
       );
-    } else {
-      queries.add('local news');
     }
+    queries.add('local community updates ${city.isNotEmpty ? city : label}');
 
     return queries
         .map(_normalizeWhitespace)
@@ -250,16 +256,23 @@ class LocalNewsService {
   ) {
     final title = _normalizeWhitespace(raw['title'] as String? ?? '');
     final url = _canonicalizeUrl(raw['link'] as String? ?? '');
+    final rawSource = raw['source'];
     final source = _normalizeWhitespace(
-      (raw['source'] is Map<String, dynamic>)
-          ? (raw['source'] as Map<String, dynamic>)['name'] as String? ?? ''
-          : raw['source'] as String? ?? '',
+      rawSource is Map<String, dynamic>
+          ? rawSource['name'] as String? ?? ''
+          : rawSource as String? ?? '',
     );
-    final snippet = _normalizeWhitespace(raw['snippet'] as String? ?? '');
-    final thumbnailUrl =
-        _normalizeWhitespace(raw['thumbnail'] as String? ?? raw['thumbnail_small'] as String? ?? '');
+    final snippet = _normalizeWhitespace(
+      raw['snippet'] as String? ??
+          raw['title_snippet'] as String? ??
+          raw['story'] as String? ?? '',
+    );
+    final thumbnailUrl = _normalizeWhitespace(
+      raw['thumbnail'] as String? ?? raw['thumbnail_small'] as String? ?? '',
+    );
     final publishedAt = _parseDateCandidate(
-      raw['date'] as String? ??
+      raw['iso_date'] as String? ??
+          raw['date'] as String? ??
           raw['published_at'] as String? ??
           raw['timestamp'] as String?,
     );
@@ -298,7 +311,10 @@ class LocalNewsService {
     return deduped;
   }
 
-  List<String> buildFallbackBullets(LocalNewsStory story, {String bodyText = ''}) {
+  List<String> buildFallbackBullets(
+    LocalNewsStory story, {
+    String bodyText = '',
+  }) {
     final bullets = <String>[];
     final normalizedBody = _normalizeWhitespace(bodyText);
 
@@ -326,11 +342,17 @@ class LocalNewsService {
       final timing = story.relativeTimeLabel.isNotEmpty
           ? ' shared ${story.relativeTimeLabel.toLowerCase()}'
           : '';
-      bullets.add(
-        'Covered by ${story.source}$timing.'
-            .replaceAll('  ', ' ')
-            .trim(),
-      );
+      final bullet = _toCalmBullet('Covered by ${story.source}$timing');
+      if (bullet.isNotEmpty && !bullets.contains(bullet)) {
+        bullets.add(bullet);
+      }
+    }
+
+    if (bullets.length < 2 && story.title.isNotEmpty) {
+      final bullet = _toCalmBullet('The update centers on ${_cleanHeadline(story.title)}');
+      if (bullet.isNotEmpty && !bullets.contains(bullet)) {
+        bullets.add(bullet);
+      }
     }
 
     if (bullets.length < 2) {
@@ -342,18 +364,23 @@ class LocalNewsService {
 
   String buildCalmHeadline(LocalNewsStory story, {String bodyText = ''}) {
     final title = _cleanHeadline(story.title);
-    if (bodyText.trim().isNotEmpty) {
-      final firstSentence = _splitIntoSentences(bodyText).firstOrNull ?? '';
+    final normalizedBody = _normalizeWhitespace(bodyText);
+    if (normalizedBody.isNotEmpty) {
+      final firstSentence = _splitIntoSentences(normalizedBody).firstOrNull ?? '';
       final summary = _normalizeWhitespace(firstSentence);
       if (summary.isNotEmpty) {
-        return _trimToWords(
-          'A steady local update: ${summary[0].toLowerCase()}${summary.substring(1)}',
-          16,
-        );
+        final lead = summary[0].toLowerCase() + summary.substring(1);
+        return _trimToWords('A steady local update: $lead', 16);
       }
     }
     if (title.isNotEmpty) {
       return _trimToWords('A steady local update on $title.', 16);
+    }
+    if (story.snippet.isNotEmpty) {
+      return _trimToWords(
+        'A steady local update: ${story.snippet.toLowerCase()}',
+        16,
+      );
     }
     return 'A steady local update for your area.';
   }
@@ -365,7 +392,8 @@ class LocalNewsService {
     ).forEach((element) => element.remove());
 
     final article = document.querySelector('article');
-    final candidates = article?.querySelectorAll('p') ?? document.querySelectorAll('p');
+    final candidates =
+        article?.querySelectorAll('p') ?? document.querySelectorAll('p');
     final paragraphs = candidates
         .map((element) => _normalizeWhitespace(element.text))
         .where((String text) => text.split(' ').length >= 8)
@@ -382,54 +410,125 @@ class LocalNewsService {
   Future<List<LocalNewsStory>> _searchStories({
     required LocalNewsLocation location,
     required String apiKey,
+    required bool forceRefresh,
   }) async {
     final queries = buildQueryFallbackChain(location);
     final aggregated = <LocalNewsStory>[];
 
     for (final query in queries) {
-      final response = await _getJson(
-        Uri.parse(_serpApiBaseUrl).replace(queryParameters: <String, String>{
-          'engine': 'google_news',
-          'q': query,
-          'api_key': apiKey,
-          'hl': 'en',
-          'gl': 'us',
-          if (location.label.isNotEmpty) 'location': location.label,
-        }),
-      );
+      for (final mode in _searchModes(location, apiKey, query, forceRefresh)) {
+        final response = await _getJson(mode.uri);
+        final stories = _extractStoriesFromResponse(response, mode.kind);
+        aggregated.addAll(
+          stories
+              .map(
+                (Map<String, dynamic> item) => parseSerpApiStory(
+                  item,
+                  aggregated.length + 1,
+                ),
+              )
+              .where(
+                (LocalNewsStory story) =>
+                    story.title.isNotEmpty && story.url.startsWith('http'),
+              ),
+        );
 
-      final stories = ((response['news_results'] as List?) ?? const <dynamic>[])
-          .map(
-            (dynamic item) => parseSerpApiStory(
-              Map<String, dynamic>.from(item as Map),
-              aggregated.length + 1,
-            ),
-          )
-          .where(
-            (LocalNewsStory story) =>
-                story.title.isNotEmpty && story.url.startsWith('http'),
-          );
-      aggregated.addAll(stories);
-
-      final deduped = dedupeStories(aggregated);
-      if (deduped.length >= _storyLimit) {
-        return deduped.take(_storyLimit).toList();
+        final deduped = dedupeStories(aggregated);
+        if (deduped.length >= _storyLimit) {
+          return deduped.take(_storyLimit).toList();
+        }
       }
     }
 
     return dedupeStories(aggregated).take(_storyLimit).toList();
   }
 
-  Future<List<LocalNewsStory>> _summarizeStories(List<LocalNewsStory> stories) async {
+  Iterable<_SerpSearchMode> _searchModes(
+    LocalNewsLocation location,
+    String apiKey,
+    String query,
+    bool forceRefresh,
+  ) sync* {
+    final common = <String, String>{
+      'api_key': apiKey,
+      'hl': 'en',
+      'gl': 'us',
+      if (forceRefresh) 'no_cache': 'true',
+    };
+
+    yield _SerpSearchMode(
+      kind: _SerpSearchKind.localNews,
+      uri: Uri.parse(_serpApiBaseUrl).replace(
+        queryParameters: <String, String>{
+          ...common,
+          'engine': 'google',
+          'q': query,
+          if (location.label.isNotEmpty) 'location': location.label,
+        },
+      ),
+    );
+
+    yield _SerpSearchMode(
+      kind: _SerpSearchKind.newsResults,
+      uri: Uri.parse(_serpApiBaseUrl).replace(
+        queryParameters: <String, String>{
+          ...common,
+          'engine': 'google_news_light',
+          'q': query,
+          if (location.label.isNotEmpty) 'location': location.label,
+        },
+      ),
+    );
+
+    yield _SerpSearchMode(
+      kind: _SerpSearchKind.newsResults,
+      uri: Uri.parse(_serpApiBaseUrl).replace(
+        queryParameters: <String, String>{
+          ...common,
+          'engine': 'google_news',
+          'q': query,
+          'so': '1',
+        },
+      ),
+    );
+  }
+
+  List<Map<String, dynamic>> _extractStoriesFromResponse(
+    Map<String, dynamic> response,
+    _SerpSearchKind preferredKind,
+  ) {
+    final candidates = <dynamic>[
+      if (preferredKind == _SerpSearchKind.localNews) response['local_news'],
+      response['news_results'],
+      response['local_news'],
+      response['stories_results'],
+    ];
+
+    final stories = <Map<String, dynamic>>[];
+    for (final candidate in candidates) {
+      if (candidate is! List) {
+        continue;
+      }
+      for (final item in candidate) {
+        if (item is! Map) {
+          continue;
+        }
+        stories.add(Map<String, dynamic>.from(item as Map));
+      }
+    }
+    return stories;
+  }
+
+  Future<List<LocalNewsStory>> _summarizeStories(
+    List<LocalNewsStory> stories,
+  ) async {
     final queue = List<LocalNewsStory>.from(stories.take(_storyLimit));
     final results = <LocalNewsStory>[];
 
     while (queue.isNotEmpty) {
       final batch = queue.take(_articleFetchConcurrency).toList();
       queue.removeRange(0, batch.length);
-      final batchResults = await Future.wait(
-        batch.map(_summarizeStory),
-      );
+      final batchResults = await Future.wait(batch.map(_summarizeStory));
       results.addAll(batchResults);
     }
 
@@ -446,7 +545,8 @@ class LocalNewsService {
     if (cachedRaw != null && cachedRaw.isNotEmpty) {
       try {
         final cachedMap = jsonDecode(cachedRaw) as Map<String, dynamic>;
-        final cachedAt = DateTime.tryParse(cachedMap['cachedAt'] as String? ?? '');
+        final cachedAt =
+            DateTime.tryParse(cachedMap['cachedAt'] as String? ?? '');
         if (cachedAt != null && _now().difference(cachedAt) <= _summaryTtl) {
           final cachedStory = LocalNewsStory.fromMap(
             Map<String, dynamic>.from(cachedMap['story'] as Map),
@@ -513,11 +613,18 @@ class LocalNewsService {
   Future<Map<String, dynamic>> _getJson(Uri uri) async {
     final response = await _httpClient.get(uri).timeout(_requestTimeout);
     if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw LocalNewsException('Local news request failed (${response.statusCode}).');
+      throw LocalNewsException(
+        'Local news request failed (${response.statusCode}).',
+      );
     }
-    return Map<String, dynamic>.from(
+    final data = Map<String, dynamic>.from(
       jsonDecode(response.body) as Map<String, dynamic>,
     );
+    final error = _normalizeWhitespace(data['error'] as String? ?? '');
+    if (error.isNotEmpty) {
+      throw LocalNewsException(error);
+    }
+    return data;
   }
 
   _ParsedLabel _parseLabel(String label) {
@@ -563,6 +670,9 @@ class LocalNewsService {
     }
 
     final difference = _now().difference(publishedAt);
+    if (difference.isNegative) {
+      return 'Recently';
+    }
     if (difference.inMinutes < 60) {
       final minutes = difference.inMinutes.clamp(1, 59);
       return '$minutes min ago';
@@ -584,8 +694,10 @@ class LocalNewsService {
       return parsed.toLocal();
     }
 
-    final relativeMatch = RegExp(r'(\d+)\s+(minute|hour|day)s?\s+ago', caseSensitive: false)
-        .firstMatch(value);
+    final relativeMatch = RegExp(
+      r'(\d+)\s+(minute|hour|day)s?\s+ago',
+      caseSensitive: false,
+    ).firstMatch(value);
     if (relativeMatch != null) {
       final amount = int.tryParse(relativeMatch.group(1) ?? '') ?? 0;
       final unit = (relativeMatch.group(2) ?? '').toLowerCase();
@@ -676,7 +788,11 @@ class LocalNewsService {
   }
 
   String _trimToWords(String text, int maxWords) {
-    final words = _normalizeWhitespace(text).split(' ');
+    final normalized = _normalizeWhitespace(text);
+    if (normalized.isEmpty) {
+      return '';
+    }
+    final words = normalized.split(' ');
     if (words.length <= maxWords) {
       return words.join(' ').trim();
     }
@@ -718,6 +834,21 @@ class _ParsedLabel {
   final String stateOrRegion;
   final String country;
   final String countyOrMetro;
+}
+
+enum _SerpSearchKind {
+  localNews,
+  newsResults,
+}
+
+class _SerpSearchMode {
+  const _SerpSearchMode({
+    required this.kind,
+    required this.uri,
+  });
+
+  final _SerpSearchKind kind;
+  final Uri uri;
 }
 
 extension _FirstOrNullExtension<T> on List<T> {
