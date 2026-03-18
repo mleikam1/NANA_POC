@@ -38,6 +38,9 @@ class LocalNewsBlockState extends State<LocalNewsBlock> {
   void initState() {
     super.initState();
     _loadNews();
+    if (widget.focusSignal > 0) {
+      focusLocalNews();
+    }
   }
 
   @override
