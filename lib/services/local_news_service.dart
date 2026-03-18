@@ -670,7 +670,7 @@ class LocalNewsService {
   String _cleanHeadline(String input) {
     return _normalizeWhitespace(
       input
-          .replaceAll(RegExp(r'\s*[\|\-–—]\s*[^|\-–—]+$'), '')
+          .replaceAll(RegExp(r'\s*[|\-–—]\s*[^|\-–—]+$'), '')
           .replaceAll(RegExp(r'["“”]'), ''),
     );
   }
