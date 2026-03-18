@@ -14,6 +14,7 @@ class HomeScreen extends StatelessWidget {
     required this.loading,
     required this.onRefresh,
     required this.onOpenLocalStories,
+    required this.onOpenRecipes,
   });
 
   final AppUserProfile profile;
@@ -21,6 +22,7 @@ class HomeScreen extends StatelessWidget {
   final bool loading;
   final Future<void> Function() onRefresh;
   final VoidCallback onOpenLocalStories;
+  final VoidCallback onOpenRecipes;
 
   @override
   Widget build(BuildContext context) {
@@ -67,6 +69,7 @@ class HomeScreen extends StatelessWidget {
                   profile: profile,
                   bundle: bundle,
                   onOpenLocalStories: onOpenLocalStories,
+                  onOpenRecipes: onOpenRecipes,
                 ),
                 const SizedBox(height: 20),
                 const _SectionHeader(title: 'Today’s nana note'),
@@ -262,11 +265,13 @@ class _WhatIncludedGrid extends StatelessWidget {
     required this.profile,
     required this.bundle,
     required this.onOpenLocalStories,
+    required this.onOpenRecipes,
   });
 
   final AppUserProfile profile;
   final BriefingBundle? bundle;
   final VoidCallback onOpenLocalStories;
+  final VoidCallback onOpenRecipes;
 
   @override
   Widget build(BuildContext context) {
@@ -283,12 +288,13 @@ class _WhatIncludedGrid extends StatelessWidget {
         onTap: onOpenLocalStories,
       ),
       _IncludedItem(
-        count: '${bundle?.recipes.length ?? 0}',
+        count: '3',
         label: 'Recipes',
         subtitle: 'Low-lift dinner ideas',
         color: colors.softYellow,
         imagePath: 'assets/images/whats_included/recipes.png',
         imageFit: BoxFit.contain,
+        onTap: onOpenRecipes,
       ),
       _IncludedItem(
         count: '1',

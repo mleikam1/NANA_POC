@@ -36,6 +36,7 @@ class _HomeShellState extends State<HomeShell> {
   bool _loading = true;
   int _index = 0;
   int _localNewsFocusSignal = 0;
+  int _nourishRecipesFocusSignal = 0;
   StreamSubscription<AppUserProfile>? _profileSubscription;
 
   @override
@@ -83,6 +84,7 @@ class _HomeShellState extends State<HomeShell> {
         loading: _loading,
         onRefresh: _loadBundle,
         onOpenLocalStories: _openLocalStories,
+        onOpenRecipes: _openRecipes,
       ),
       LocalScreen(
         profile: _profile,
@@ -95,6 +97,7 @@ class _HomeShellState extends State<HomeShell> {
         bundle: _bundle,
         loading: _loading,
         onRefresh: _loadBundle,
+        focusSignal: _nourishRecipesFocusSignal,
       ),
       UnwindScreen(
         bundle: _bundle,
@@ -162,6 +165,13 @@ class _HomeShellState extends State<HomeShell> {
     setState(() {
       _index = 1;
       _localNewsFocusSignal++;
+    });
+  }
+
+  void _openRecipes() {
+    setState(() {
+      _index = 2;
+      _nourishRecipesFocusSignal++;
     });
   }
 }
