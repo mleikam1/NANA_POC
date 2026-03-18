@@ -1,5 +1,6 @@
 class AppConfig {
   static const functionsRegion = 'us-central1';
+  static const serpApiKey = String.fromEnvironment('SERPAPI_API_KEY');
 
   static const bottomTabs = <String>[
     'Home',

@@ -13,12 +13,14 @@ class HomeScreen extends StatelessWidget {
     required this.bundle,
     required this.loading,
     required this.onRefresh,
+    required this.onOpenLocalStories,
   });
 
   final AppUserProfile profile;
   final BriefingBundle? bundle;
   final bool loading;
   final Future<void> Function() onRefresh;
+  final VoidCallback onOpenLocalStories;
 
   @override
   Widget build(BuildContext context) {
@@ -64,6 +66,7 @@ class HomeScreen extends StatelessWidget {
                 _WhatIncludedGrid(
                   profile: profile,
                   bundle: bundle,
+                  onOpenLocalStories: onOpenLocalStories,
                 ),
                 const SizedBox(height: 20),
                 const _SectionHeader(title: 'Today’s nana note'),
@@ -258,10 +261,12 @@ class _WhatIncludedGrid extends StatelessWidget {
   const _WhatIncludedGrid({
     required this.profile,
     required this.bundle,
+    required this.onOpenLocalStories,
   });
 
   final AppUserProfile profile;
   final BriefingBundle? bundle;
+  final VoidCallback onOpenLocalStories;
 
   @override
   Widget build(BuildContext context) {
@@ -269,12 +274,13 @@ class _WhatIncludedGrid extends StatelessWidget {
     final location = profile.locationLabel.trim();
     final items = <_IncludedItem>[
       _IncludedItem(
-        count: '${bundle?.localNews.length ?? 0}',
+        count: '5',
         label: 'Local stories',
         subtitle: 'Near ${location.isEmpty ? 'you' : location}',
         color: colors.softGreen,
         imagePath: 'assets/images/whats_included/local_stories.png',
         imageFit: BoxFit.cover,
+        onTap: onOpenLocalStories,
       ),
       _IncludedItem(
         count: '${bundle?.recipes.length ?? 0}',
