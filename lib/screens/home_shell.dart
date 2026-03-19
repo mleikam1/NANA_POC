@@ -6,13 +6,13 @@ import '../models/app_user_profile.dart';
 import '../models/briefing_bundle.dart';
 import '../repositories/briefing_repository.dart';
 import '../repositories/profile_repository.dart';
+import '../services/full_screen_calm_cue_launcher.dart';
 import '../services/notification_service.dart';
 import '../theme/nana_theme.dart';
 import 'care_screen.dart';
 import 'home_screen.dart';
 import 'local_screen.dart';
 import 'nourish_screen.dart';
-import 'todays_brief_preview_screen.dart';
 import 'unwind_screen.dart';
 
 class HomeShell extends StatefulWidget {
@@ -31,6 +31,8 @@ class HomeShell extends StatefulWidget {
 
 class _HomeShellState extends State<HomeShell> {
   final BriefingRepository _briefingRepository = BriefingRepository();
+  final FullScreenCalmCueLauncher _fullScreenCalmCueLauncher =
+      FullScreenCalmCueLauncher();
 
   late AppUserProfile _profile = widget.initialProfile;
   BriefingBundle? _bundle;
@@ -116,10 +118,9 @@ class _HomeShellState extends State<HomeShell> {
           );
         },
         onOpenFullScreenPreview: () async {
-          await Navigator.of(context).push(
-            MaterialPageRoute<void>(
-              builder: (_) => TodaysBriefPreviewScreen(profile: _profile),
-            ),
+          await _fullScreenCalmCueLauncher.open(
+            context: context,
+            profile: _profile,
           );
         },
       ),
