@@ -69,11 +69,23 @@ class BriefPreviewSectionView extends StatelessWidget {
                         ],
                       ),
                       const SizedBox(height: 18),
-                      Text(section.eyebrow, style: Theme.of(context).textTheme.labelLarge),
+                      Text(
+                        _fallbackText(section.eyebrow, 'A calm cue'),
+                        style: Theme.of(context).textTheme.labelLarge,
+                      ),
                       const SizedBox(height: 10),
-                      Text(section.title, style: Theme.of(context).textTheme.headlineSmall),
+                      Text(
+                        _fallbackText(section.title, section.topic.label),
+                        style: Theme.of(context).textTheme.headlineSmall,
+                      ),
                       const SizedBox(height: 10),
-                      Text(section.description, style: Theme.of(context).textTheme.bodyLarge),
+                      Text(
+                        _fallbackText(
+                          section.description,
+                          'A gentle update for this part of your brief.',
+                        ),
+                        style: Theme.of(context).textTheme.bodyLarge,
+                      ),
                       if (section.summary != null && section.summary!.isNotEmpty) ...<Widget>[
                         const SizedBox(height: 14),
                         _EditorialSummary(summary: section.summary!),
@@ -393,6 +405,10 @@ class _WeatherLayout extends StatelessWidget {
     final wind = summary.metadata['Wind'];
     final high = summary.metadata['High'] ?? '--';
     final low = summary.metadata['Low'] ?? '--';
+    final weatherTitle = _fallbackText(summary.title, 'Weather');
+    final weatherSubtitle = _fallbackText(summary.subtitle, 'Today’s outlook');
+    final weatherBadge = _fallbackText(summary.badge, 'Now');
+    final weatherSource = _fallbackText(summary.source, 'Weather');
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -406,18 +422,18 @@ class _WeatherLayout extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
-              Text(summary.subtitle, style: Theme.of(context).textTheme.titleMedium),
+              Text(weatherSubtitle, style: Theme.of(context).textTheme.titleMedium),
               const SizedBox(height: 14),
               Wrap(
                 crossAxisAlignment: WrapCrossAlignment.end,
                 spacing: 14,
                 runSpacing: 10,
                 children: <Widget>[
-                  Text(summary.title, style: Theme.of(context).textTheme.displaySmall),
+                  Text(weatherTitle, style: Theme.of(context).textTheme.displaySmall),
                   Padding(
                     padding: const EdgeInsets.only(bottom: 8),
                     child: _MetaPill(
-                      label: summary.badge,
+                      label: weatherBadge,
                       icon: Icons.schedule_rounded,
                       backgroundColor: Colors.white.withValues(alpha: 0.55),
                     ),
@@ -435,7 +451,10 @@ class _WeatherLayout extends StatelessWidget {
                     _MetaChip(label: 'Humidity $humidity', backgroundColor: colors.softYellow),
                   if (wind != null && wind.isNotEmpty)
                     _MetaChip(label: 'Wind $wind', backgroundColor: colors.softYellow),
-                  _MetaChip(label: summary.source, backgroundColor: Colors.white.withValues(alpha: 0.55)),
+                  _MetaChip(
+                    label: weatherSource,
+                    backgroundColor: Colors.white.withValues(alpha: 0.55),
+                  ),
                 ],
               ),
             ],
@@ -461,11 +480,20 @@ class _WeatherLayout extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: <Widget>[
-                        Text(item.title, style: Theme.of(context).textTheme.labelLarge),
+                        Text(
+                          _fallbackText(item.title, 'Later'),
+                          style: Theme.of(context).textTheme.labelLarge,
+                        ),
                         const SizedBox(height: 10),
-                        Text(item.badge, style: Theme.of(context).textTheme.titleLarge),
+                        Text(
+                          _fallbackText(item.badge, '--'),
+                          style: Theme.of(context).textTheme.titleLarge,
+                        ),
                         const SizedBox(height: 6),
-                        Text(item.subtitle, style: Theme.of(context).textTheme.bodySmall),
+                        Text(
+                          _fallbackText(item.subtitle, 'Forecast details will appear soon.'),
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
                       ],
                     ),
                   ),
@@ -667,20 +695,26 @@ class _HeroEditorialCard extends StatelessWidget {
               _ImagePanel(imageUrl: item.imageUrl, height: 220, icon: Icons.article_outlined),
               const SizedBox(height: 16),
               _MetaPill(
-                label: badgeLabel,
+                label: _fallbackText(badgeLabel, 'Featured'),
                 icon: Icons.newspaper_rounded,
                 backgroundColor: Colors.white.withValues(alpha: 0.55),
               ),
               const SizedBox(height: 14),
-              Text(item.title, style: Theme.of(context).textTheme.titleLarge),
+              Text(
+                _fallbackText(item.title, 'A calm read'),
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
               const SizedBox(height: 8),
-              Text(item.subtitle, style: Theme.of(context).textTheme.bodyLarge),
+              Text(
+                _fallbackText(item.subtitle, 'Open for a little more context.'),
+                style: Theme.of(context).textTheme.bodyLarge,
+              ),
               const SizedBox(height: 14),
               Wrap(
                 spacing: 8,
                 runSpacing: 8,
                 children: <Widget>[
-                  _MetaChip(label: item.source),
+                  _MetaChip(label: _fallbackText(item.source, 'Brief')),
                   ...item.metadata.values.take(1).map((String value) => _MetaChip(label: value)),
                 ],
               ),
@@ -725,15 +759,21 @@ class _EditorialListCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
-                    Text(item.title, style: Theme.of(context).textTheme.titleMedium),
+                    Text(
+                      _fallbackText(item.title, 'A calm update'),
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
                     const SizedBox(height: 8),
-                    Text(item.subtitle, style: Theme.of(context).textTheme.bodyMedium),
+                    Text(
+                      _fallbackText(item.subtitle, 'Tap to open the full story.'),
+                      style: Theme.of(context).textTheme.bodyMedium,
+                    ),
                     const SizedBox(height: 12),
                     Wrap(
                       spacing: 8,
                       runSpacing: 8,
                       children: <Widget>[
-                        _MetaChip(label: item.source),
+                        _MetaChip(label: _fallbackText(item.source, 'Brief')),
                         if (item.badge.isNotEmpty) _MetaChip(label: item.badge),
                       ],
                     ),
@@ -782,16 +822,25 @@ class _RecipeCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
                     _MetaPill(
-                      label: item.badge,
+                      label: _fallbackText(item.badge, 'Easy'),
                       icon: Icons.timer_outlined,
                       backgroundColor: Colors.white.withValues(alpha: 0.58),
                     ),
                     const SizedBox(height: 12),
-                    Text(item.title, style: Theme.of(context).textTheme.titleMedium),
+                    Text(
+                      _fallbackText(item.title, 'A simple idea'),
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
                     const SizedBox(height: 8),
-                    Text(item.subtitle, style: Theme.of(context).textTheme.bodyMedium),
+                    Text(
+                      _fallbackText(item.subtitle, 'Ingredients and details will appear here.'),
+                      style: Theme.of(context).textTheme.bodyMedium,
+                    ),
                     const SizedBox(height: 12),
-                    Text(item.source, style: Theme.of(context).textTheme.bodySmall),
+                    Text(
+                      _fallbackText(item.source, 'Recipes'),
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
                   ],
                 ),
               ),
@@ -842,15 +891,24 @@ class _InfoCard extends StatelessWidget {
                   ),
                   const SizedBox(width: 10),
                   Expanded(
-                    child: Text(item.source, style: Theme.of(context).textTheme.bodySmall),
+                    child: Text(
+                      _fallbackText(item.source, 'Brief'),
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
                   ),
                   if (item.badge.isNotEmpty) _MetaChip(label: item.badge),
                 ],
               ),
               const SizedBox(height: 14),
-              Text(item.title, style: Theme.of(context).textTheme.titleMedium),
+              Text(
+                _fallbackText(item.title, 'A helpful pick'),
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
               const SizedBox(height: 8),
-              Text(item.subtitle, style: Theme.of(context).textTheme.bodyMedium),
+              Text(
+                _fallbackText(item.subtitle, 'Open for the latest details.'),
+                style: Theme.of(context).textTheme.bodyMedium,
+              ),
               if (item.metadata.isNotEmpty) ...<Widget>[
                 const SizedBox(height: 12),
                 Wrap(
@@ -905,14 +963,20 @@ class _RoutineCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
               _MetaPill(
-                label: item.badge,
+                label: _fallbackText(item.badge, 'Try this'),
                 icon: Icons.self_improvement_rounded,
                 backgroundColor: Colors.white.withValues(alpha: 0.52),
               ),
               const SizedBox(height: 14),
-              Text(item.title, style: Theme.of(context).textTheme.titleMedium),
+              Text(
+                _fallbackText(item.title, 'A small routine'),
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
               const SizedBox(height: 10),
-              Text(item.subtitle, style: Theme.of(context).textTheme.bodyLarge),
+              Text(
+                _fallbackText(item.subtitle, 'A lighter way to reset your space.'),
+                style: Theme.of(context).textTheme.bodyLarge,
+              ),
               if (item.metadata.isNotEmpty) ...<Widget>[
                 const SizedBox(height: 14),
                 ...item.metadata.entries.take(2).map(
@@ -975,16 +1039,25 @@ class _CompactLinkTile extends StatelessWidget {
                     Row(
                       children: <Widget>[
                         Flexible(
-                          child: Text(item.title, style: Theme.of(context).textTheme.titleMedium),
+                          child: Text(
+                            _fallbackText(item.title, 'A calm pick'),
+                            style: Theme.of(context).textTheme.titleMedium,
+                          ),
                         ),
                         const SizedBox(width: 8),
                         if (item.badge.isNotEmpty) _MetaChip(label: item.badge),
                       ],
                     ),
                     const SizedBox(height: 8),
-                    Text(item.subtitle, style: Theme.of(context).textTheme.bodyMedium),
+                    Text(
+                      _fallbackText(item.subtitle, 'Open for the full details.'),
+                      style: Theme.of(context).textTheme.bodyMedium,
+                    ),
                     const SizedBox(height: 10),
-                    Text(item.source, style: Theme.of(context).textTheme.bodySmall),
+                    Text(
+                      _fallbackText(item.source, 'Brief'),
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
                   ],
                 ),
               ),
@@ -1215,6 +1288,7 @@ class _MetaChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = NanaColors.of(context);
+    final safeLabel = _fallbackText(label, 'Brief');
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
@@ -1222,7 +1296,7 @@ class _MetaChip extends StatelessWidget {
         borderRadius: BorderRadius.circular(999),
         border: Border.all(color: colors.skyMist.withValues(alpha: 0.18)),
       ),
-      child: Text(label, style: Theme.of(context).textTheme.bodySmall),
+      child: Text(safeLabel, style: Theme.of(context).textTheme.bodySmall),
     );
   }
 }
@@ -1241,6 +1315,7 @@ class _MetaPill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = NanaColors.of(context);
+    final safeLabel = _fallbackText(label, 'Brief');
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
@@ -1252,11 +1327,16 @@ class _MetaPill extends StatelessWidget {
         children: <Widget>[
           Icon(icon, size: 16, color: colors.forestSage),
           const SizedBox(width: 8),
-          Text(label, style: Theme.of(context).textTheme.labelLarge),
+          Text(safeLabel, style: Theme.of(context).textTheme.labelLarge),
         ],
       ),
     );
   }
+}
+
+String _fallbackText(String? value, String fallback) {
+  final trimmed = value?.trim() ?? '';
+  return trimmed.isEmpty ? fallback : trimmed;
 }
 
 _TopicPresentation _topicPresentation(OnboardingTopic topic) {

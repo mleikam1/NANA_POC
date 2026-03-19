@@ -394,7 +394,9 @@ class BriefContentService {
     final items = <BriefContentItem>[
       BriefContentItem(
         id: 'weather_now_${_normalizeId(weatherLocation)}',
-        title: '$temperature° ${condition.isNotEmpty ? condition : 'Weather'}',
+        title: _normalizeWhitespace(
+          '${temperature.isNotEmpty ? '$temperature° ' : ''}${condition.isNotEmpty ? condition : 'Weather'}',
+        ),
         subtitle: 'Today in $weatherLocation',
         source: 'Google Weather via SerpApi',
         badge: 'Now',
@@ -426,7 +428,11 @@ class BriefContentService {
       eyebrow: 'Plan with less friction',
       title: 'Weather',
       description: 'A soft snapshot for ${location.hasPreciseLocation ? weatherLocation : 'the U.S.'}.',
-      summary: '$temperature°${condition.isNotEmpty ? ' and $condition' : ''} in $weatherLocation.',
+      summary: _weatherSummary(
+        temperature: temperature,
+        condition: condition,
+        weatherLocation: weatherLocation,
+      ),
       items: items,
       generatedAt: _now(),
       queryUsed: mapping.query,
@@ -502,6 +508,21 @@ class BriefContentService {
       generatedAt: _now(),
       queryUsed: queryUsed,
     );
+  }
+
+  String _weatherSummary({
+    required String temperature,
+    required String condition,
+    required String weatherLocation,
+  }) {
+    final lead = <String>[
+      if (temperature.isNotEmpty) '$temperature°',
+      if (condition.isNotEmpty) condition,
+    ].join(' and ');
+    if (lead.isEmpty) {
+      return 'Weather details for $weatherLocation.';
+    }
+    return '$lead in $weatherLocation.';
   }
 
   List<BriefContentItem> _extractCards(
