@@ -2,20 +2,21 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import '../models/app_user_profile.dart';
-import '../models/todays_brief_preview.dart';
-import '../services/todays_brief_service.dart';
+import '../models/brief_content.dart';
+import '../repositories/brief_content_repository.dart';
 import '../theme/nana_theme.dart';
+import '../widgets/brief_preview_section_widgets.dart';
 import 'in_app_webview_screen.dart';
 
 class TodaysBriefPreviewScreen extends StatefulWidget {
   const TodaysBriefPreviewScreen({
     super.key,
     required this.profile,
-    TodaysBriefService? service,
-  }) : _service = service;
+    BriefContentRepository? repository,
+  }) : _repository = repository;
 
   final AppUserProfile profile;
-  final TodaysBriefService? _service;
+  final BriefContentRepository? _repository;
 
   @override
   State<TodaysBriefPreviewScreen> createState() => _TodaysBriefPreviewScreenState();
@@ -23,10 +24,28 @@ class TodaysBriefPreviewScreen extends StatefulWidget {
 
 class _TodaysBriefPreviewScreenState extends State<TodaysBriefPreviewScreen> {
   late final PageController _pageController = PageController();
-  late final Future<TodaysBriefPreview> _previewFuture =
-      (widget._service ?? TodaysBriefService()).loadPreview(widget.profile);
+  late final BriefContentRepository _repository =
+      widget._repository ?? BriefContentRepository();
 
+  late Future<BriefPage> _briefFuture = _loadBrief();
   int _pageIndex = 0;
+
+  Future<BriefPage> _loadBrief({bool forceRefresh = false}) {
+    return _repository.loadBriefPage(
+      widget.profile,
+      forceRefresh: forceRefresh,
+    );
+  }
+
+  void _reload({bool forceRefresh = false}) {
+    setState(() {
+      _pageIndex = 0;
+      _briefFuture = _loadBrief(forceRefresh: forceRefresh);
+    });
+    if (_pageController.hasClients) {
+      _pageController.jumpToPage(0);
+    }
+  }
 
   @override
   void dispose() {
@@ -45,123 +64,103 @@ class _TodaysBriefPreviewScreenState extends State<TodaysBriefPreviewScreen> {
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
             colors: <Color>[
-              colors.cardBlue.withValues(alpha: 0.7),
+              colors.cardBlue.withValues(alpha: 0.72),
               colors.ricePaper,
-              colors.cardSoft.withValues(alpha: 0.45),
+              colors.cardSoft.withValues(alpha: 0.48),
             ],
           ),
         ),
         child: SafeArea(
-          child: FutureBuilder<TodaysBriefPreview>(
-            future: _previewFuture,
-            builder: (BuildContext context, AsyncSnapshot<TodaysBriefPreview> snapshot) {
+          child: FutureBuilder<BriefPage>(
+            future: _briefFuture,
+            builder: (BuildContext context, AsyncSnapshot<BriefPage> snapshot) {
               if (snapshot.connectionState != ConnectionState.done) {
                 return const _LoadingView();
               }
 
               if (snapshot.hasError) {
-                return _ErrorView(message: snapshot.error.toString());
+                return _ErrorView(
+                  message: snapshot.error.toString(),
+                  onRetry: () => _reload(forceRefresh: true),
+                );
               }
 
-              final preview = snapshot.requireData;
-              final pageCount = preview.sections.length + 1;
+              final brief = snapshot.requireData;
+              if (brief.sections.isEmpty) {
+                return _EmptyView(onRefresh: () => _reload(forceRefresh: true));
+              }
 
-              return Column(
-                children: <Widget>[
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
-                    child: Row(
-                      children: <Widget>[
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: <Widget>[
-                              Text(
-                                'Today’s brief',
-                                style: Theme.of(context).textTheme.headlineMedium,
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                DateFormat('EEEE, MMM d').format(preview.generatedAt),
-                                style: Theme.of(context).textTheme.bodyMedium,
-                              ),
-                            ],
-                          ),
+              final pageCount = brief.sections.length + 1;
+              final currentSection =
+                  _pageIndex < brief.sections.length ? brief.sections[_pageIndex] : null;
+
+              return LayoutBuilder(
+                builder: (BuildContext context, BoxConstraints constraints) {
+                  final horizontalPadding = constraints.maxWidth >= 900 ? 28.0 : 20.0;
+
+                  return Column(
+                    children: <Widget>[
+                      Padding(
+                        padding: EdgeInsets.fromLTRB(horizontalPadding, 14, horizontalPadding, 8),
+                        child: _Header(
+                          generatedAt: brief.generatedAt,
+                          currentTopic: currentSection?.topic.label,
+                          onClose: () => Navigator.of(context).maybePop(),
+                          onRefresh: () => _reload(forceRefresh: true),
                         ),
-                        FilledButton.tonalIcon(
-                          onPressed: () => Navigator.of(context).maybePop(),
-                          icon: const Icon(Icons.close_rounded),
-                          label: const Text('Close'),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(999),
-                      child: LinearProgressIndicator(
-                        minHeight: 8,
-                        value: (_pageIndex + 1) / pageCount,
-                        backgroundColor: colors.skyMist.withValues(alpha: 0.18),
                       ),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Expanded(
-                    child: PageView.builder(
-                      controller: _pageController,
-                      onPageChanged: (int value) => setState(() => _pageIndex = value),
-                      itemCount: pageCount,
-                      itemBuilder: (BuildContext context, int index) {
-                        if (index == preview.sections.length) {
-                          return _CompletionPage(topics: preview.topics);
-                        }
-                        return _SectionPage(
-                          section: preview.sections[index],
-                          isFirst: index == 0,
-                          onOpenLink: _openLink,
-                        );
-                      },
-                    ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
-                    child: Row(
-                      children: <Widget>[
-                        Expanded(
-                          child: OutlinedButton(
-                            onPressed: _pageIndex == 0
-                                ? null
-                                : () => _pageController.previousPage(
-                                      duration: const Duration(milliseconds: 280),
-                                      curve: Curves.easeOutCubic,
-                                    ),
-                            child: const Text('Back'),
-                          ),
+                      Padding(
+                        padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
+                        child: _PageIndicatorRow(
+                          pageCount: pageCount,
+                          pageIndex: _pageIndex,
                         ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: FilledButton(
-                            onPressed: () {
-                              if (_pageIndex == pageCount - 1) {
-                                Navigator.of(context).maybePop();
-                                return;
-                              }
-                              _pageController.nextPage(
-                                duration: const Duration(milliseconds: 320),
-                                curve: Curves.easeOutCubic,
+                      ),
+                      const SizedBox(height: 10),
+                      Expanded(
+                        child: PageView.builder(
+                          controller: _pageController,
+                          physics: const BouncingScrollPhysics(),
+                          onPageChanged: (int value) => setState(() => _pageIndex = value),
+                          itemCount: pageCount,
+                          itemBuilder: (BuildContext context, int index) {
+                            if (index == brief.sections.length) {
+                              return BriefPreviewCompletionPage(
+                                topics: brief.selectedTopics,
                               );
-                            },
-                            child: Text(
-                              _pageIndex == pageCount - 1 ? 'Done' : 'Next',
-                            ),
-                          ),
+                            }
+                            return BriefPreviewSectionView(
+                              section: brief.sections[index],
+                              isFirst: index == 0,
+                              onOpenLink: _openLink,
+                            );
+                          },
                         ),
-                      ],
-                    ),
-                  ),
-                ],
+                      ),
+                      Padding(
+                        padding: EdgeInsets.fromLTRB(horizontalPadding, 12, horizontalPadding, 20),
+                        child: _BottomControls(
+                          isFirstPage: _pageIndex == 0,
+                          isLastPage: _pageIndex == pageCount - 1,
+                          onBack: () => _pageController.previousPage(
+                            duration: const Duration(milliseconds: 280),
+                            curve: Curves.easeOutCubic,
+                          ),
+                          onNext: () {
+                            if (_pageIndex == pageCount - 1) {
+                              Navigator.of(context).maybePop();
+                              return;
+                            }
+                            _pageController.nextPage(
+                              duration: const Duration(milliseconds: 320),
+                              curve: Curves.easeOutCubic,
+                            );
+                          },
+                        ),
+                      ),
+                    ],
+                  );
+                },
               );
             },
           ),
@@ -170,15 +169,178 @@ class _TodaysBriefPreviewScreenState extends State<TodaysBriefPreviewScreen> {
     );
   }
 
-  Future<void> _openLink(BriefPreviewItem item) async {
+  Future<void> _openLink(BriefContentItem item) async {
     final link = item.link;
     if (link == null || link.isEmpty || !mounted) {
       return;
     }
+
     await Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (_) => InAppWebViewScreen(title: item.title, url: link),
       ),
+    );
+  }
+}
+
+class _Header extends StatelessWidget {
+  const _Header({
+    required this.generatedAt,
+    required this.currentTopic,
+    required this.onClose,
+    required this.onRefresh,
+  });
+
+  final DateTime generatedAt;
+  final String? currentTopic;
+  final VoidCallback onClose;
+  final VoidCallback onRefresh;
+
+  @override
+  Widget build(BuildContext context) {
+    final actionButtons = Wrap(
+      spacing: 10,
+      runSpacing: 10,
+      alignment: WrapAlignment.end,
+      children: <Widget>[
+        FilledButton.tonalIcon(
+          onPressed: onRefresh,
+          icon: const Icon(Icons.refresh_rounded),
+          label: const Text('Refresh'),
+        ),
+        FilledButton.tonalIcon(
+          onPressed: onClose,
+          icon: const Icon(Icons.close_rounded),
+          label: const Text('Close'),
+        ),
+      ],
+    );
+
+    final heading = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        Text(
+          'Today’s brief',
+          style: Theme.of(context).textTheme.headlineMedium,
+        ),
+        const SizedBox(height: 6),
+        Text(
+          DateFormat('EEEE, MMM d').format(generatedAt),
+          style: Theme.of(context).textTheme.bodyMedium,
+        ),
+        if (currentTopic != null) ...<Widget>[
+          const SizedBox(height: 6),
+          Text(
+            currentTopic!,
+            style: Theme.of(context).textTheme.labelLarge,
+          ),
+        ],
+      ],
+    );
+
+    return LayoutBuilder(
+      builder: (BuildContext context, BoxConstraints constraints) {
+        if (constraints.maxWidth < 520) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              heading,
+              const SizedBox(height: 14),
+              actionButtons,
+            ],
+          );
+        }
+
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Expanded(child: heading),
+            const SizedBox(width: 12),
+            actionButtons,
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _PageIndicatorRow extends StatelessWidget {
+  const _PageIndicatorRow({
+    required this.pageCount,
+    required this.pageIndex,
+  });
+
+  final int pageCount;
+  final int pageIndex;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = NanaColors.of(context);
+    return Column(
+      children: <Widget>[
+        ClipRRect(
+          borderRadius: BorderRadius.circular(999),
+          child: LinearProgressIndicator(
+            minHeight: 8,
+            value: (pageIndex + 1) / pageCount,
+            backgroundColor: colors.skyMist.withValues(alpha: 0.18),
+          ),
+        ),
+        const SizedBox(height: 12),
+        Wrap(
+          alignment: WrapAlignment.center,
+          spacing: 8,
+          runSpacing: 8,
+          children: List<Widget>.generate(pageCount, (int index) {
+            final isActive = index == pageIndex;
+            return AnimatedContainer(
+              duration: const Duration(milliseconds: 220),
+              curve: Curves.easeOut,
+              width: isActive ? 24 : 8,
+              height: 8,
+              decoration: BoxDecoration(
+                color: isActive ? colors.forestSage : colors.skyMist.withValues(alpha: 0.35),
+                borderRadius: BorderRadius.circular(999),
+              ),
+            );
+          }),
+        ),
+      ],
+    );
+  }
+}
+
+class _BottomControls extends StatelessWidget {
+  const _BottomControls({
+    required this.isFirstPage,
+    required this.isLastPage,
+    required this.onBack,
+    required this.onNext,
+  });
+
+  final bool isFirstPage;
+  final bool isLastPage;
+  final VoidCallback onBack;
+  final VoidCallback onNext;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: <Widget>[
+        Expanded(
+          child: OutlinedButton(
+            onPressed: isFirstPage ? null : onBack,
+            child: const Text('Back'),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: FilledButton(
+            onPressed: onNext,
+            child: Text(isLastPage ? 'Done' : 'Next'),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -190,29 +352,35 @@ class _LoadingView extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = NanaColors.of(context);
     return Center(
-      child: Container(
-        margin: const EdgeInsets.all(24),
+      child: Padding(
         padding: const EdgeInsets.all(24),
-        decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.8),
-          borderRadius: BorderRadius.circular(28),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: <Widget>[
-            CircularProgressIndicator(color: colors.forestSage),
-            const SizedBox(height: 18),
-            Text(
-              'Building your calm cue preview…',
-              style: Theme.of(context).textTheme.titleMedium,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 560),
+          child: Container(
+            padding: const EdgeInsets.all(28),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.82),
+              borderRadius: BorderRadius.circular(32),
             ),
-            const SizedBox(height: 8),
-            Text(
-              'We’re pulling together each selected topic for today’s brief.',
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodyMedium,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                CircularProgressIndicator(color: colors.forestSage),
+                const SizedBox(height: 18),
+                Text(
+                  'Building your calm cue preview…',
+                  style: Theme.of(context).textTheme.titleLarge,
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  'We’re gathering each selected topic into a soft, swipeable preview.',
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context).textTheme.bodyLarge,
+                ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );
@@ -220,32 +388,60 @@ class _LoadingView extends StatelessWidget {
 }
 
 class _ErrorView extends StatelessWidget {
-  const _ErrorView({required this.message});
+  const _ErrorView({
+    required this.message,
+    required this.onRetry,
+  });
 
   final String message;
+  final VoidCallback onRetry;
 
   @override
   Widget build(BuildContext context) {
+    final colors = NanaColors.of(context);
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24),
-        child: Container(
-          padding: const EdgeInsets.all(24),
-          decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.85),
-            borderRadius: BorderRadius.circular(28),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: <Widget>[
-              Text('Today’s brief', style: Theme.of(context).textTheme.headlineSmall),
-              const SizedBox(height: 12),
-              Text(
-                'We couldn’t build the preview right now.\n\n$message',
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.bodyMedium,
-              ),
-            ],
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 560),
+          child: Container(
+            padding: const EdgeInsets.all(28),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.84),
+              borderRadius: BorderRadius.circular(32),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                Container(
+                  width: 64,
+                  height: 64,
+                  decoration: BoxDecoration(
+                    color: colors.cardSoft,
+                    borderRadius: BorderRadius.circular(22),
+                  ),
+                  child: Icon(Icons.cloud_off_rounded, color: colors.earthUmber),
+                ),
+                const SizedBox(height: 18),
+                Text(
+                  'We couldn’t load today’s preview.',
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context).textTheme.titleLarge,
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  message,
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
+                const SizedBox(height: 20),
+                FilledButton.icon(
+                  onPressed: onRetry,
+                  icon: const Icon(Icons.refresh_rounded),
+                  label: const Text('Try again'),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -253,356 +449,58 @@ class _ErrorView extends StatelessWidget {
   }
 }
 
-class _SectionPage extends StatelessWidget {
-  const _SectionPage({
-    required this.section,
-    required this.isFirst,
-    required this.onOpenLink,
-  });
+class _EmptyView extends StatelessWidget {
+  const _EmptyView({required this.onRefresh});
 
-  final BriefPreviewSection section;
-  final bool isFirst;
-  final Future<void> Function(BriefPreviewItem item) onOpenLink;
+  final VoidCallback onRefresh;
 
   @override
   Widget build(BuildContext context) {
     final colors = NanaColors.of(context);
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
-      children: <Widget>[
-        Container(
-          padding: const EdgeInsets.all(24),
-          decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.78),
-            borderRadius: BorderRadius.circular(32),
-            boxShadow: <BoxShadow>[
-              BoxShadow(
-                color: colors.skyMist.withValues(alpha: 0.14),
-                blurRadius: 22,
-                offset: const Offset(0, 12),
-              ),
-            ],
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              if (isFirst)
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 560),
+          child: Container(
+            padding: const EdgeInsets.all(28),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.84),
+              borderRadius: BorderRadius.circular(32),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  width: 64,
+                  height: 64,
                   decoration: BoxDecoration(
                     color: colors.softGreen,
-                    borderRadius: BorderRadius.circular(999),
+                    borderRadius: BorderRadius.circular(22),
                   ),
-                  child: Text(
-                    'Swipe horizontally to move through your brief',
-                    style: Theme.of(context).textTheme.labelLarge,
-                  ),
+                  child: Icon(Icons.auto_awesome_rounded, color: colors.forestSage),
                 ),
-              if (isFirst) const SizedBox(height: 18),
-              Text(section.eyebrow, style: Theme.of(context).textTheme.labelLarge),
-              const SizedBox(height: 10),
-              Text(section.title, style: Theme.of(context).textTheme.headlineSmall),
-              const SizedBox(height: 10),
-              Text(section.description, style: Theme.of(context).textTheme.bodyLarge),
-              if (section.errorMessage != null) ...<Widget>[
-                const SizedBox(height: 12),
+                const SizedBox(height: 18),
                 Text(
-                  'Note: ${section.errorMessage}',
-                  style: Theme.of(context).textTheme.bodySmall,
+                  'No preview sections yet.',
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context).textTheme.titleLarge,
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  'Pick a few topics or refresh again to build your calm cue.',
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context).textTheme.bodyLarge,
+                ),
+                const SizedBox(height: 20),
+                FilledButton.icon(
+                  onPressed: onRefresh,
+                  icon: const Icon(Icons.refresh_rounded),
+                  label: const Text('Refresh preview'),
                 ),
               ],
-              const SizedBox(height: 22),
-              if (section.kind == BriefPreviewSectionKind.weather)
-                _WeatherPanel(section: section)
-              else if (section.items.isEmpty)
-                _EmptyPanel(topic: section.topic)
-              else
-                ...section.items.map(
-                  (BriefPreviewItem item) => Padding(
-                    padding: const EdgeInsets.only(bottom: 14),
-                    child: _PreviewCard(
-                      item: item,
-                      kind: section.kind,
-                      onTap: item.link == null || item.link!.isEmpty
-                          ? null
-                          : () => onOpenLink(item),
-                    ),
-                  ),
-                ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _WeatherPanel extends StatelessWidget {
-  const _WeatherPanel({required this.section});
-
-  final BriefPreviewSection section;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = NanaColors.of(context);
-    final weather = section.weather;
-    if (weather == null) {
-      return _EmptyPanel(topic: section.topic);
-    }
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: <Widget>[
-        Container(
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            color: colors.cardBlue,
-            borderRadius: BorderRadius.circular(28),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              Text(weather.location, style: Theme.of(context).textTheme.titleMedium),
-              const SizedBox(height: 10),
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: <Widget>[
-                  Text(
-                    weather.temperature.isEmpty ? '--' : '${weather.temperature}°',
-                    style: Theme.of(context).textTheme.displaySmall,
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.only(bottom: 8),
-                      child: Text(
-                        weather.condition.isEmpty ? 'Quiet skies' : weather.condition,
-                        style: Theme.of(context).textTheme.titleMedium,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 10),
-              Text(
-                'High ${weather.high}° • Low ${weather.low}°',
-                style: Theme.of(context).textTheme.bodyLarge,
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 16),
-        Text('Next few hours', style: Theme.of(context).textTheme.titleMedium),
-        const SizedBox(height: 12),
-        Wrap(
-          spacing: 10,
-          runSpacing: 10,
-          children: weather.hourly.map((BriefPreviewWeatherHour hour) {
-            return Container(
-              width: 132,
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: colors.softYellow,
-                borderRadius: BorderRadius.circular(22),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  Text(hour.label, style: Theme.of(context).textTheme.labelLarge),
-                  const SizedBox(height: 8),
-                  Text('${hour.temperature}°', style: Theme.of(context).textTheme.titleLarge),
-                  const SizedBox(height: 4),
-                  Text(hour.condition, style: Theme.of(context).textTheme.bodySmall),
-                ],
-              ),
-            );
-          }).toList(),
-        ),
-      ],
-    );
-  }
-}
-
-class _PreviewCard extends StatelessWidget {
-  const _PreviewCard({
-    required this.item,
-    required this.kind,
-    this.onTap,
-  });
-
-  final BriefPreviewItem item;
-  final BriefPreviewSectionKind kind;
-  final VoidCallback? onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = NanaColors.of(context);
-    final backgroundColor = switch (kind) {
-      BriefPreviewSectionKind.recipes => colors.cardSoft,
-      BriefPreviewSectionKind.videos => colors.softGreen,
-      BriefPreviewSectionKind.curated => colors.softYellow,
-      _ => Colors.white,
-    };
-
-    return Material(
-      color: backgroundColor,
-      borderRadius: BorderRadius.circular(24),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(24),
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.all(18),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              Row(
-                children: <Widget>[
-                  Expanded(
-                    child: Text(
-                      item.title,
-                      style: Theme.of(context).textTheme.titleMedium,
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.72),
-                      borderRadius: BorderRadius.circular(999),
-                    ),
-                    child: Text(item.badge, style: Theme.of(context).textTheme.labelLarge),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              Text(item.subtitle, style: Theme.of(context).textTheme.bodyMedium),
-              const SizedBox(height: 12),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: <Widget>[
-                  if (item.source.isNotEmpty)
-                    _MetaChip(label: item.source),
-                  ...item.metadata.entries.map(
-                    (MapEntry<String, String> entry) => _MetaChip(
-                      label: '${entry.key}: ${entry.value}',
-                    ),
-                  ),
-                ],
-              ),
-              if (onTap != null) ...<Widget>[
-                const SizedBox(height: 14),
-                Row(
-                  children: <Widget>[
-                    Text('Open source', style: Theme.of(context).textTheme.labelLarge),
-                    const SizedBox(width: 6),
-                    const Icon(Icons.arrow_forward_rounded, size: 18),
-                  ],
-                ),
-              ],
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _MetaChip extends StatelessWidget {
-  const _MetaChip({required this.label});
-
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = NanaColors.of(context);
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: colors.ricePaper.withValues(alpha: 0.9),
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Text(label, style: Theme.of(context).textTheme.bodySmall),
-    );
-  }
-}
-
-class _EmptyPanel extends StatelessWidget {
-  const _EmptyPanel({required this.topic});
-
-  final String topic;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = NanaColors.of(context);
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: colors.cardSoft,
-        borderRadius: BorderRadius.circular(24),
-      ),
-      child: Text(
-        'No fresh items landed for $topic just yet. Pull this preview up again in a bit.',
-        style: Theme.of(context).textTheme.bodyMedium,
-      ),
-    );
-  }
-}
-
-class _CompletionPage extends StatelessWidget {
-  const _CompletionPage({required this.topics});
-
-  final List<String> topics;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = NanaColors.of(context);
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
-      child: Container(
-        padding: const EdgeInsets.all(28),
-        decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.82),
-          borderRadius: BorderRadius.circular(32),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              decoration: BoxDecoration(
-                color: colors.softGreen,
-                borderRadius: BorderRadius.circular(999),
-              ),
-              child: Text('You’re all caught up!', style: Theme.of(context).textTheme.labelLarge),
             ),
-            const Spacer(),
-            Text('A calmer finish for now.', style: Theme.of(context).textTheme.displaySmall),
-            const SizedBox(height: 16),
-            Text(
-              'Today\'s brief covered ${topics.join(', ')}. Come back anytime from Care to preview the full-screen calm cue again.',
-              style: Theme.of(context).textTheme.bodyLarge,
-            ),
-            const SizedBox(height: 24),
-            Wrap(
-              spacing: 10,
-              runSpacing: 10,
-              children: topics
-                  .map(
-                    (String topic) => Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: colors.cardBlue,
-                        borderRadius: BorderRadius.circular(999),
-                      ),
-                      child: Text(topic, style: Theme.of(context).textTheme.bodySmall),
-                    ),
-                  )
-                  .toList(),
-            ),
-            const Spacer(),
-          ],
+          ),
         ),
       ),
     );
