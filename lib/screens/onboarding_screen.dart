@@ -6,8 +6,8 @@ import 'package:geolocator/geolocator.dart';
 
 import '../utils/location_label_helper.dart';
 
-import '../config/app_config.dart';
 import '../models/app_user_profile.dart';
+import '../models/onboarding_topic.dart';
 import '../repositories/topic_preferences_repository.dart';
 import '../theme/nana_theme.dart';
 import '../widgets/nana_radar_logo.dart';
@@ -31,7 +31,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   final TextEditingController _firstNameController = TextEditingController();
   final TextEditingController _locationController = TextEditingController();
 
-  final Set<String> _selectedTopics = <String>{};
+  final List<OnboardingTopic> _selectedTopics = <OnboardingTopic>[];
   final TopicPreferencesRepository _topicPreferencesRepository =
       TopicPreferencesRepository();
   bool _notificationEnabled = true;
@@ -66,11 +66,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       _fullScreenIntent = existing.notificationPreferences.fullScreenIntent;
       _briefSchedules = existing.notificationPreferences.resolvedBriefSchedules;
     } else {
-      _selectedTopics.addAll(const <String>[
-        'Local News',
-        'Easy Recipes',
-        'Calm Videos',
-      ]);
+      _selectedTopics.addAll(OnboardingTopic.defaultSelection);
     }
 
     unawaited(_hydrateStoredTopics());
@@ -214,7 +210,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
     setState(() => _saving = true);
     try {
-      final orderedTopics = TopicPreferencesRepository.stabilizeTopics(_selectedTopics);
+      final orderedTopics = TopicPreferencesRepository.stabilizeTopics(
+        _selectedTopics,
+      );
       await _topicPreferencesRepository.saveSelectedTopics(orderedTopics);
 
       final existingUid = widget.existingProfile?.uid ?? '';
@@ -231,15 +229,20 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 : 'Current location',
         locationLatitude: _selectedLatitude,
         locationLongitude: _selectedLongitude,
-        topics: orderedTopics,
+        topics: orderedTopics
+            .map((OnboardingTopic topic) => topic.label)
+            .toList(growable: false),
         onboardingComplete: true,
         notificationPreferences: NotificationPreference(
           enabled: _notificationEnabled,
           hour: _briefSchedules[BriefDaypart.morning.key]!.hour,
           minute: _briefSchedules[BriefDaypart.morning.key]!.minute,
-          timeZone: widget.existingProfile?.notificationPreferences.timeZone.isNotEmpty == true
-              ? widget.existingProfile!.notificationPreferences.timeZone
-              : DateTime.now().timeZoneName,
+          timeZone:
+              widget.existingProfile?.notificationPreferences.timeZone
+                          .isNotEmpty ==
+                      true
+                  ? widget.existingProfile!.notificationPreferences.timeZone
+                  : DateTime.now().timeZoneName,
           fullScreenIntent: _fullScreenIntent,
           briefSchedules: _briefSchedules,
         ),
@@ -253,7 +256,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       }
     }
   }
-
 
   Future<void> _hydrateStoredTopics() async {
     final storedTopics = await _topicPreferencesRepository.readSelectedTopics();
@@ -329,10 +331,10 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         Wrap(
           spacing: 10,
           runSpacing: 10,
-          children: AppConfig.defaultTopics.map((String topic) {
+          children: OnboardingTopic.values.map((OnboardingTopic topic) {
             final selected = _selectedTopics.contains(topic);
             return FilterChip(
-              label: Text(topic),
+              label: Text(topic.label),
               selected: selected,
               onSelected: (bool value) {
                 setState(() {
@@ -342,7 +344,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                     _selectedTopics.remove(topic);
                   }
                   unawaited(
-                    _topicPreferencesRepository.saveSelectedTopics(_selectedTopics),
+                    _topicPreferencesRepository.saveSelectedTopics(
+                      _selectedTopics,
+                    ),
                   );
                 });
               },
