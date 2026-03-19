@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 
 import '../models/app_user_profile.dart';
 import '../models/brief_content.dart';
+import '../models/onboarding_topic.dart';
 import '../repositories/brief_content_repository.dart';
 import '../theme/nana_theme.dart';
 import '../widgets/brief_preview_section_widgets.dart';
@@ -12,10 +13,15 @@ class TodaysBriefPreviewScreen extends StatefulWidget {
   const TodaysBriefPreviewScreen({
     super.key,
     required this.profile,
+    this.selectedTopics,
+    Future<BriefPage>? initialBriefFuture,
     BriefContentRepository? repository,
-  }) : _repository = repository;
+  })  : _initialBriefFuture = initialBriefFuture,
+        _repository = repository;
 
   final AppUserProfile profile;
+  final List<OnboardingTopic>? selectedTopics;
+  final Future<BriefPage>? _initialBriefFuture;
   final BriefContentRepository? _repository;
 
   @override
@@ -27,12 +33,14 @@ class _TodaysBriefPreviewScreenState extends State<TodaysBriefPreviewScreen> {
   late final BriefContentRepository _repository =
       widget._repository ?? BriefContentRepository();
 
-  late Future<BriefPage> _briefFuture = _loadBrief();
+  late Future<BriefPage> _briefFuture =
+      widget._initialBriefFuture ?? _loadBrief();
   int _pageIndex = 0;
 
   Future<BriefPage> _loadBrief({bool forceRefresh = false}) {
     return _repository.loadBriefPage(
       widget.profile,
+      selectedTopics: widget.selectedTopics,
       forceRefresh: forceRefresh,
     );
   }
