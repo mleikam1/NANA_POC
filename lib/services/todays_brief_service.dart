@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 
 import '../config/app_config.dart';
 import '../models/app_user_profile.dart';
+import '../models/onboarding_topic.dart';
 import '../models/todays_brief_preview.dart';
 import '../repositories/topic_preferences_repository.dart';
 import '../utils/location_label_helper.dart';
@@ -41,7 +42,9 @@ class TodaysBriefService {
       profile.topics,
     );
     final selectedTopics = topics.isEmpty
-        ? AppConfig.defaultTopics.take(3).toList(growable: false)
+        ? OnboardingTopic.defaultSelection
+            .map((OnboardingTopic topic) => topic.label)
+            .toList(growable: false)
         : topics;
 
     final sections = await Future.wait(
