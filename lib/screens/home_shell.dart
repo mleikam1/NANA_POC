@@ -12,6 +12,7 @@ import 'care_screen.dart';
 import 'home_screen.dart';
 import 'local_screen.dart';
 import 'nourish_screen.dart';
+import 'todays_brief_preview_screen.dart';
 import 'unwind_screen.dart';
 
 class HomeShell extends StatefulWidget {
@@ -112,6 +113,13 @@ class _HomeShellState extends State<HomeShell> {
             title: 'Your NANA calm cue is ready',
             body: 'Take a calm look at today’s local weather, recipes, and resets.',
             fullScreenIntent: _profile.notificationPreferences.fullScreenIntent,
+          );
+        },
+        onOpenFullScreenPreview: () async {
+          await Navigator.of(context).push(
+            MaterialPageRoute<void>(
+              builder: (_) => TodaysBriefPreviewScreen(profile: _profile),
+            ),
           );
         },
       ),

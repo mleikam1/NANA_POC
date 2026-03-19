@@ -10,11 +10,13 @@ class CareScreen extends StatefulWidget {
     required this.profile,
     required this.onProfileChanged,
     required this.onPreviewNotification,
+    required this.onOpenFullScreenPreview,
   });
 
   final AppUserProfile profile;
   final Future<void> Function(AppUserProfile profile) onProfileChanged;
   final Future<void> Function() onPreviewNotification;
+  final Future<void> Function() onOpenFullScreenPreview;
 
   @override
   State<CareScreen> createState() => _CareScreenState();
@@ -180,6 +182,11 @@ class _CareScreenState extends State<CareScreen> {
           FilledButton.tonal(
             onPressed: widget.onPreviewNotification,
             child: const Text('Preview calm cue notification'),
+          ),
+          const SizedBox(height: 12),
+          FilledButton.tonal(
+            onPressed: widget.onOpenFullScreenPreview,
+            child: const Text('Preview a full screen calm cue'),
           ),
           const SizedBox(height: 12),
           Text(
