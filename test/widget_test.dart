@@ -1,30 +1,72 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
-
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:nana_poc/models/app_user_profile.dart';
+import 'package:nana_poc/models/todays_brief_preview.dart';
+import 'package:nana_poc/screens/todays_brief_preview_screen.dart';
+import 'package:nana_poc/services/todays_brief_service.dart';
+import 'package:nana_poc/theme/nana_theme.dart';
 
-import 'package:nana_poc/main.dart';
+class _FakeTodaysBriefService extends TodaysBriefService {
+  _FakeTodaysBriefService()
+      : super(
+          apiKey: 'test-key',
+        );
+
+  @override
+  Future<TodaysBriefPreview> loadPreview(AppUserProfile profile) async {
+    return TodaysBriefPreview(
+      generatedAt: DateTime(2026, 3, 19),
+      topics: const <String>['Local News'],
+      sections: const <BriefPreviewSection>[
+        BriefPreviewSection(
+          topic: 'Local News',
+          kind: BriefPreviewSectionKind.roundup,
+          eyebrow: 'Close to home',
+          title: 'Local News',
+          description: 'A calmer look nearby.',
+          items: <BriefPreviewItem>[
+            BriefPreviewItem(
+              title: 'Neighborhood garden day',
+              subtitle: 'Volunteers are refreshing the block garden.',
+              source: 'Community Post',
+              badge: 'Local',
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
+  testWidgets('full screen calm cue preview renders heading and completion page', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: NanaTheme.lightTheme,
+        home: TodaysBriefPreviewScreen(
+          profile: AppUserProfile(
+            uid: 'uid',
+            firstName: 'Nina',
+            locationLabel: 'Austin, TX',
+            topics: const <String>['Local News'],
+            onboardingComplete: true,
+            notificationPreferences: NotificationPreference.defaults(),
+          ),
+          service: _FakeTodaysBriefService(),
+        ),
+      ),
+    );
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+    await tester.pumpAndSettle();
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
+    expect(find.text('Today’s brief'), findsOneWidget);
+    expect(find.text('Neighborhood garden day'), findsOneWidget);
 
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+    await tester.drag(find.byType(PageView), const Offset(-400, 0));
+    await tester.pumpAndSettle();
+
+    expect(find.text('You’re all caught up!'), findsOneWidget);
   });
 }

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -7,6 +8,7 @@ import '../utils/location_label_helper.dart';
 
 import '../config/app_config.dart';
 import '../models/app_user_profile.dart';
+import '../repositories/topic_preferences_repository.dart';
 import '../theme/nana_theme.dart';
 import '../widgets/nana_radar_logo.dart';
 
@@ -24,13 +26,14 @@ class OnboardingScreen extends StatefulWidget {
   State<OnboardingScreen> createState() => _OnboardingScreenState();
 }
 
-class _OnboardingScreenState extends State<OnboardingScreen>
-{
+class _OnboardingScreenState extends State<OnboardingScreen> {
   final PageController _pageController = PageController();
   final TextEditingController _firstNameController = TextEditingController();
   final TextEditingController _locationController = TextEditingController();
 
   final Set<String> _selectedTopics = <String>{};
+  final TopicPreferencesRepository _topicPreferencesRepository =
+      TopicPreferencesRepository();
   bool _notificationEnabled = true;
   bool _fullScreenIntent = true;
   Map<String, BriefSchedule> _briefSchedules =
@@ -48,7 +51,9 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     super.initState();
     final existing = widget.existingProfile;
     if (existing != null) {
-      _selectedTopics.addAll(existing.topics);
+      _selectedTopics.addAll(
+        TopicPreferencesRepository.stabilizeTopics(existing.topics),
+      );
       _firstNameController.text = existing.firstName;
       _locationController.text = LocationLabelHelper.bestLabelFromProfile(
         locationLabel: existing.locationLabel,
@@ -67,6 +72,8 @@ class _OnboardingScreenState extends State<OnboardingScreen>
         'Calm Videos',
       ]);
     }
+
+    unawaited(_hydrateStoredTopics());
   }
 
   @override
@@ -207,6 +214,9 @@ class _OnboardingScreenState extends State<OnboardingScreen>
 
     setState(() => _saving = true);
     try {
+      final orderedTopics = TopicPreferencesRepository.stabilizeTopics(_selectedTopics);
+      await _topicPreferencesRepository.saveSelectedTopics(orderedTopics);
+
       final existingUid = widget.existingProfile?.uid ?? '';
       final profile = AppUserProfile(
         uid: existingUid,
@@ -221,7 +231,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                 : 'Current location',
         locationLatitude: _selectedLatitude,
         locationLongitude: _selectedLongitude,
-        topics: _selectedTopics.toList()..sort(),
+        topics: orderedTopics,
         onboardingComplete: true,
         notificationPreferences: NotificationPreference(
           enabled: _notificationEnabled,
@@ -242,6 +252,20 @@ class _OnboardingScreenState extends State<OnboardingScreen>
         setState(() => _saving = false);
       }
     }
+  }
+
+
+  Future<void> _hydrateStoredTopics() async {
+    final storedTopics = await _topicPreferencesRepository.readSelectedTopics();
+    if (!mounted || storedTopics.isEmpty) {
+      return;
+    }
+
+    setState(() {
+      _selectedTopics
+        ..clear()
+        ..addAll(storedTopics);
+    });
   }
 
   bool get _hasLocationValue {
@@ -317,6 +341,9 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                   } else {
                     _selectedTopics.remove(topic);
                   }
+                  unawaited(
+                    _topicPreferencesRepository.saveSelectedTopics(_selectedTopics),
+                  );
                 });
               },
             );
