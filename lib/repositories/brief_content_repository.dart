@@ -54,10 +54,9 @@ class BriefContentRepository {
   }) async {
     final resolvedTopics = await _resolveSelectedTopics(profile, selectedTopics);
     final location = await _briefContentService.resolveLocationContext(profile);
-
     final sections = await Future.wait(
       resolvedTopics.map(
-        (SelectedBriefTopic topic) => _loadSection(
+        (SelectedBriefTopic topic) => _loadSectionSafely(
           topic: topic,
           profile: profile,
           location: location,
@@ -107,6 +106,38 @@ class BriefContentRepository {
         );
       }
 
+      return BriefSection(
+        topic: topic,
+        kind: _fallbackKind(topic.topic),
+        state: BriefSectionLoadState.error,
+        eyebrow: _fallbackEyebrow(topic.topic),
+        title: topic.label,
+        description: 'This section could not be refreshed right now.',
+        summary: null,
+        items: const <BriefContentItem>[],
+        generatedAt: _now(),
+        errorMessage: error.toString(),
+        queryUsed: null,
+        isFromCache: false,
+        isStale: false,
+      );
+    }
+  }
+
+  Future<BriefSection> _loadSectionSafely({
+    required SelectedBriefTopic topic,
+    required AppUserProfile profile,
+    required BriefLocationContext location,
+    required bool forceRefresh,
+  }) async {
+    try {
+      return await _loadSection(
+        topic: topic,
+        profile: profile,
+        location: location,
+        forceRefresh: forceRefresh,
+      );
+    } catch (error) {
       return BriefSection(
         topic: topic,
         kind: _fallbackKind(topic.topic),

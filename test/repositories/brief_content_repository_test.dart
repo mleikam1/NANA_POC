@@ -149,8 +149,79 @@ void main() {
     expect(page.sections[2].topic.topic, OnboardingTopic.cozyGames);
     expect(page.sections[2].state, BriefSectionLoadState.ready);
     expect(page.sections[2].items, isNotEmpty);
+    expect(page.sections[2].queryUsed, 'static_curated_cards');
 
     expect(requestedQueries, contains('weather in United States'));
     expect(requestedQueries, contains('positive uplifting good news today'));
+    expect(requestedQueries, isNot(contains('cozy games')));
+  });
+
+  test('explicit selected topics drive section order even when stored topics exist', () async {
+    SharedPreferences.setMockInitialValues(<String, Object>{
+      'selected_onboarding_topics_v1': <String>[
+        OnboardingTopic.localNews.storageKey,
+        OnboardingTopic.goodNews.storageKey,
+      ],
+    });
+
+    final client = MockClient((http.Request request) async {
+      final query = request.url.queryParameters['q'] ?? '';
+      if (query == 'weather in United States') {
+        return http.Response(
+          jsonEncode(<String, dynamic>{
+            'answer_box': <String, dynamic>{
+              'location': 'United States',
+              'temperature': '68',
+              'weather': 'Partly cloudy',
+            },
+          }),
+          200,
+        );
+      }
+
+      return http.Response(
+        jsonEncode(<String, dynamic>{
+          'organic_results': <Map<String, dynamic>>[
+            <String, dynamic>{
+              'title': 'Helpful result for $query',
+              'snippet': 'A calm result.',
+              'source': 'SerpApi stub',
+              'link': 'https://example.com/${Uri.encodeComponent(query)}',
+            },
+          ],
+        }),
+        200,
+      );
+    });
+
+    final repository = BriefContentRepository(
+      httpClient: client,
+      apiKey: 'poc-key',
+    );
+
+    final profile = AppUserProfile(
+      uid: 'user-2',
+      firstName: 'Nina',
+      locationLabel: '',
+      topics: const <String>['Local News', 'Good News'],
+      onboardingComplete: true,
+      notificationPreferences: NotificationPreference.defaults(),
+    );
+
+    final page = await repository.loadBriefPage(
+      profile,
+      selectedTopics: const <OnboardingTopic>[
+        OnboardingTopic.weather,
+        OnboardingTopic.cozyGames,
+      ],
+    );
+
+    expect(
+      page.sections.map((BriefSection section) => section.topic.topic).toList(),
+      <OnboardingTopic>[
+        OnboardingTopic.weather,
+        OnboardingTopic.cozyGames,
+      ],
+    );
   });
 }

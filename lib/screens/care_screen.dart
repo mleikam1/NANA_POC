@@ -186,7 +186,7 @@ class _CareScreenState extends State<CareScreen> {
           const SizedBox(height: 12),
           FilledButton.tonal(
             onPressed: widget.onOpenFullScreenPreview,
-            child: const Text('Preview a full screen calm cue'),
+            child: const Text('Preview full-screen calm cue'),
           ),
           const SizedBox(height: 12),
           Text(

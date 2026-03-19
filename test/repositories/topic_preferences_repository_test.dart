@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:nana_poc/models/onboarding_topic.dart';
 import 'package:nana_poc/repositories/topic_preferences_repository.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -15,7 +16,14 @@ void main() {
       'Cozy Games',
     ]);
 
-    expect(topics, <String>['Local News', 'Good News', 'Cozy Games']);
+    expect(
+      topics,
+      <OnboardingTopic>[
+        OnboardingTopic.localNews,
+        OnboardingTopic.goodNews,
+        OnboardingTopic.cozyGames,
+      ],
+    );
   });
 
   test('saveSelectedTopics persists stable topic order', () async {
@@ -23,15 +31,19 @@ void main() {
       sharedPreferences: SharedPreferences.getInstance(),
     );
 
-    await repository.saveSelectedTopics(const <String>[
-      'Cozy Games',
-      'Local News',
-      'Good News',
+    await repository.saveSelectedTopics(const <OnboardingTopic>[
+      OnboardingTopic.cozyGames,
+      OnboardingTopic.localNews,
+      OnboardingTopic.goodNews,
     ]);
 
     expect(
       await repository.readSelectedTopics(),
-      <String>['Local News', 'Good News', 'Cozy Games'],
+      <OnboardingTopic>[
+        OnboardingTopic.localNews,
+        OnboardingTopic.goodNews,
+        OnboardingTopic.cozyGames,
+      ],
     );
   });
 }

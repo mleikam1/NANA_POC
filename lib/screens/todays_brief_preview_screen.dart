@@ -33,9 +33,11 @@ class _TodaysBriefPreviewScreenState extends State<TodaysBriefPreviewScreen> {
   late final BriefContentRepository _repository =
       widget._repository ?? BriefContentRepository();
 
+  // Keeping a stable future lets notification-triggered launches reuse the same
+  // prepared brief work instead of briefly flashing a second network load.
   late Future<BriefPage> _briefFuture =
       widget._initialBriefFuture ?? _loadBrief();
-  int _pageIndex = 0;
+  int _currentPageIndex = 0;
 
   Future<BriefPage> _loadBrief({bool forceRefresh = false}) {
     return _repository.loadBriefPage(
@@ -45,9 +47,9 @@ class _TodaysBriefPreviewScreenState extends State<TodaysBriefPreviewScreen> {
     );
   }
 
-  void _reload({bool forceRefresh = false}) {
+  void _reloadBrief({bool forceRefresh = false}) {
     setState(() {
-      _pageIndex = 0;
+      _currentPageIndex = 0;
       _briefFuture = _loadBrief(forceRefresh: forceRefresh);
     });
     if (_pageController.hasClients) {
@@ -89,18 +91,20 @@ class _TodaysBriefPreviewScreenState extends State<TodaysBriefPreviewScreen> {
               if (snapshot.hasError) {
                 return _ErrorView(
                   message: snapshot.error.toString(),
-                  onRetry: () => _reload(forceRefresh: true),
+                  onRetry: () => _reloadBrief(forceRefresh: true),
                 );
               }
 
               final brief = snapshot.requireData;
               if (brief.sections.isEmpty) {
-                return _EmptyView(onRefresh: () => _reload(forceRefresh: true));
+                return _EmptyView(onRefresh: () => _reloadBrief(forceRefresh: true));
               }
 
-              final pageCount = brief.sections.length + 1;
-              final currentSection =
-                  _pageIndex < brief.sections.length ? brief.sections[_pageIndex] : null;
+              final totalPageCount = brief.sections.length + 1;
+              final currentSection = _currentPageIndex < brief.sections.length
+                  ? brief.sections[_currentPageIndex]
+                  : null;
+              final currentPageLabel = currentSection?.topic.label ?? 'Caught up';
 
               return LayoutBuilder(
                 builder: (BuildContext context, BoxConstraints constraints) {
@@ -112,16 +116,17 @@ class _TodaysBriefPreviewScreenState extends State<TodaysBriefPreviewScreen> {
                         padding: EdgeInsets.fromLTRB(horizontalPadding, 14, horizontalPadding, 8),
                         child: _Header(
                           generatedAt: brief.generatedAt,
-                          currentTopic: currentSection?.topic.label,
+                          currentTopic: currentPageLabel,
                           onClose: () => Navigator.of(context).maybePop(),
-                          onRefresh: () => _reload(forceRefresh: true),
+                          onRefresh: () => _reloadBrief(forceRefresh: true),
                         ),
                       ),
                       Padding(
                         padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
                         child: _PageIndicatorRow(
-                          pageCount: pageCount,
-                          pageIndex: _pageIndex,
+                          totalPageCount: totalPageCount,
+                          currentPageIndex: _currentPageIndex,
+                          currentPageLabel: currentPageLabel,
                         ),
                       ),
                       const SizedBox(height: 10),
@@ -129,8 +134,8 @@ class _TodaysBriefPreviewScreenState extends State<TodaysBriefPreviewScreen> {
                         child: PageView.builder(
                           controller: _pageController,
                           physics: const BouncingScrollPhysics(),
-                          onPageChanged: (int value) => setState(() => _pageIndex = value),
-                          itemCount: pageCount,
+                          onPageChanged: (int value) => setState(() => _currentPageIndex = value),
+                          itemCount: totalPageCount,
                           itemBuilder: (BuildContext context, int index) {
                             if (index == brief.sections.length) {
                               return BriefPreviewCompletionPage(
@@ -148,14 +153,14 @@ class _TodaysBriefPreviewScreenState extends State<TodaysBriefPreviewScreen> {
                       Padding(
                         padding: EdgeInsets.fromLTRB(horizontalPadding, 12, horizontalPadding, 20),
                         child: _BottomControls(
-                          isFirstPage: _pageIndex == 0,
-                          isLastPage: _pageIndex == pageCount - 1,
+                          isFirstPage: _currentPageIndex == 0,
+                          isLastPage: _currentPageIndex == totalPageCount - 1,
                           onBack: () => _pageController.previousPage(
                             duration: const Duration(milliseconds: 280),
                             curve: Curves.easeOutCubic,
                           ),
                           onNext: () {
-                            if (_pageIndex == pageCount - 1) {
+                            if (_currentPageIndex == totalPageCount - 1) {
                               Navigator.of(context).maybePop();
                               return;
                             }
@@ -274,23 +279,41 @@ class _Header extends StatelessWidget {
 
 class _PageIndicatorRow extends StatelessWidget {
   const _PageIndicatorRow({
-    required this.pageCount,
-    required this.pageIndex,
+    required this.totalPageCount,
+    required this.currentPageIndex,
+    required this.currentPageLabel,
   });
 
-  final int pageCount;
-  final int pageIndex;
+  final int totalPageCount;
+  final int currentPageIndex;
+  final String currentPageLabel;
 
   @override
   Widget build(BuildContext context) {
     final colors = NanaColors.of(context);
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
+        Row(
+          children: <Widget>[
+            Expanded(
+              child: Text(
+                currentPageLabel,
+                style: Theme.of(context).textTheme.labelLarge,
+              ),
+            ),
+            Text(
+              'Page ${currentPageIndex + 1} of $totalPageCount',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
         ClipRRect(
           borderRadius: BorderRadius.circular(999),
           child: LinearProgressIndicator(
             minHeight: 8,
-            value: (pageIndex + 1) / pageCount,
+            value: (currentPageIndex + 1) / totalPageCount,
             backgroundColor: colors.skyMist.withValues(alpha: 0.18),
           ),
         ),
@@ -299,8 +322,8 @@ class _PageIndicatorRow extends StatelessWidget {
           alignment: WrapAlignment.center,
           spacing: 8,
           runSpacing: 8,
-          children: List<Widget>.generate(pageCount, (int index) {
-            final isActive = index == pageIndex;
+          children: List<Widget>.generate(totalPageCount, (int index) {
+            final isActive = index == currentPageIndex;
             return AnimatedContainer(
               duration: const Duration(milliseconds: 220),
               curve: Curves.easeOut,
@@ -369,27 +392,101 @@ class _LoadingView extends StatelessWidget {
             decoration: BoxDecoration(
               color: Colors.white.withValues(alpha: 0.82),
               borderRadius: BorderRadius.circular(32),
+              boxShadow: <BoxShadow>[
+                BoxShadow(
+                  color: colors.skyMist.withValues(alpha: 0.16),
+                  blurRadius: 28,
+                  offset: const Offset(0, 16),
+                ),
+              ],
             ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
-                CircularProgressIndicator(color: colors.forestSage),
+                Row(
+                  children: <Widget>[
+                    SizedBox(
+                      height: 28,
+                      width: 28,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 3,
+                        color: colors.forestSage,
+                      ),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Text(
+                        'Building your calm cue preview…',
+                        style: Theme.of(context).textTheme.titleLarge,
+                      ),
+                    ),
+                  ],
+                ),
                 const SizedBox(height: 18),
                 Text(
-                  'Building your calm cue preview…',
-                  style: Theme.of(context).textTheme.titleLarge,
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 10),
-                Text(
                   'We’re gathering each selected topic into a soft, swipeable preview.',
-                  textAlign: TextAlign.center,
                   style: Theme.of(context).textTheme.bodyLarge,
                 ),
+                const SizedBox(height: 22),
+                const _LoadingCardPlaceholder(),
+                const SizedBox(height: 14),
+                const _LoadingCardPlaceholder(isCompact: true),
               ],
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _LoadingCardPlaceholder extends StatelessWidget {
+  const _LoadingCardPlaceholder({this.isCompact = false});
+
+  final bool isCompact;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = NanaColors.of(context);
+    final lineColor = colors.skyMist.withValues(alpha: 0.22);
+
+    return Container(
+      padding: EdgeInsets.all(isCompact ? 18 : 20),
+      decoration: BoxDecoration(
+        color: isCompact ? colors.ricePaper : colors.cardBlue.withValues(alpha: 0.45),
+        borderRadius: BorderRadius.circular(24),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Container(
+            width: isCompact ? 110 : 140,
+            height: 12,
+            decoration: BoxDecoration(
+              color: lineColor,
+              borderRadius: BorderRadius.circular(999),
+            ),
+          ),
+          const SizedBox(height: 14),
+          Container(
+            width: double.infinity,
+            height: isCompact ? 16 : 18,
+            decoration: BoxDecoration(
+              color: lineColor,
+              borderRadius: BorderRadius.circular(999),
+            ),
+          ),
+          const SizedBox(height: 10),
+          Container(
+            width: isCompact ? 180 : 240,
+            height: 14,
+            decoration: BoxDecoration(
+              color: lineColor,
+              borderRadius: BorderRadius.circular(999),
+            ),
+          ),
+        ],
       ),
     );
   }
